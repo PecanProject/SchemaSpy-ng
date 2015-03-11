@@ -20,3 +20,6 @@ To compress into .jar:
 3. compress using <code>jar cmf META-INF/MANIFEST.MF out.jar @sources.txt</code>
 note: META-INF/MANIFEST.MF is the location of the existing manifest file
 
+## C++ documentation extractor
+
+see c-documentation/README.md
