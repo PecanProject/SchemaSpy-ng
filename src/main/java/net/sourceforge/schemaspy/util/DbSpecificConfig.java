@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.util;
+package schemaspy.util;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.StringTokenizer;
-import net.sourceforge.schemaspy.Config;
+import schemaspy.Config;
 
 /**
  * Configuration of a specific type of database (as specified by -t)
@@ -46,7 +46,7 @@ public class DbSpecificConfig {
         type = dbType;
         Properties props;
         try {
-            props = config.determineDbProperties(dbType);
+            props = config.getDbProperties(dbType);
             description = props.getProperty("description");
             loadOptions(props);
         } catch (IOException exc) {

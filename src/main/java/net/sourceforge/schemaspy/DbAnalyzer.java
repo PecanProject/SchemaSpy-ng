@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy;
+package schemaspy;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,13 +36,13 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import net.sourceforge.schemaspy.model.ForeignKeyConstraint;
-import net.sourceforge.schemaspy.model.ImpliedForeignKeyConstraint;
-import net.sourceforge.schemaspy.model.RailsForeignKeyConstraint;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.model.TableColumn;
-import net.sourceforge.schemaspy.model.TableIndex;
-import net.sourceforge.schemaspy.util.Inflection;
+import schemaspy.model.ForeignKeyConstraint;
+import schemaspy.model.ImpliedForeignKeyConstraint;
+import schemaspy.model.RailsForeignKeyConstraint;
+import schemaspy.model.Table;
+import schemaspy.model.TableColumn;
+import schemaspy.model.TableIndex;
+import schemaspy.util.Inflection;
 
 public class DbAnalyzer {
     public static List<ImpliedForeignKeyConstraint> getImpliedConstraints(Collection<Table> tables) {
@@ -125,7 +126,7 @@ public class DbAnalyzer {
         // match Rails naming conventions
         for (Table table : tables.values()) {
             for (TableColumn column : table.getColumns()) {
-                String columnName = column.getName().toLowerCase();
+            	String columnName = column.getName().toLowerCase();
                 if (!column.isForeignKey() && column.allowsImpliedParents() && columnName.endsWith("_id")) {
                     String singular = columnName.substring(0, columnName.length() - 3);
                     String primaryTableName = Inflection.pluralize(singular);
@@ -197,7 +198,7 @@ public class DbAnalyzer {
         List<Table> withoutIndexes = new ArrayList<Table>();
 
         for (Table table : tables) {
-            if (table.getIndexes().size() == 0 && !table.isView() && !table.isLogical())
+            if (!table.isView() && table.getIndexes().size() == 0)
                 withoutIndexes.add(table);
         }
 
@@ -297,7 +298,7 @@ public class DbAnalyzer {
                 Object defaultValue = column.getDefaultValue();
                 if (defaultValue != null && defaultValue instanceof String) {
                     String defaultString = defaultValue.toString();
-                    if (defaultString.trim().equalsIgnoreCase("'null'")) {
+                    if (defaultString.trim().equalsIgnoreCase("null")) {
                         defaultNullStringColumns.add(column);
                     }
                 }
@@ -305,23 +306,6 @@ public class DbAnalyzer {
         }
 
         return sortColumnsByTable(defaultNullStringColumns);
-    }
-
-    /**
-     * getSchemas - returns a List of catalog names (Strings)
-     *
-     * @param meta DatabaseMetaData
-     */
-    public static List<String> getCatalogs(DatabaseMetaData meta) throws SQLException {
-        List<String> catalogs = new ArrayList<String>();
-
-        ResultSet rs = meta.getCatalogs();
-        while (rs.next()) {
-            catalogs.add(rs.getString("TABLE_CAT"));
-        }
-        rs.close();
-
-        return catalogs;
     }
 
     /**
@@ -347,7 +331,7 @@ public class DbAnalyzer {
      * @param meta DatabaseMetaData
      */
     public static List<String> getPopulatedSchemas(DatabaseMetaData meta) throws SQLException {
-        return getPopulatedSchemas(meta, ".*", false);
+        return getPopulatedSchemas(meta, ".*");
     }
 
     /**
@@ -356,13 +340,15 @@ public class DbAnalyzer {
      *
      * @param meta DatabaseMetaData
      */
-    public static List<String> getPopulatedSchemas(DatabaseMetaData meta, String schemaSpec, boolean isCatalog) throws SQLException {
+    public static List<String> getPopulatedSchemas(DatabaseMetaData meta, String schemaSpec) throws SQLException {
         Set<String> schemas = new TreeSet<String>(); // alpha sorted
         Pattern schemaRegex = Pattern.compile(schemaSpec);
         Logger logger = Logger.getLogger(DbAnalyzer.class.getName());
         boolean logging = logger.isLoggable(Level.FINE);
 
-        for (String schema : (isCatalog ? getCatalogs(meta) : getSchemas(meta))) {
+        Iterator<String> iter = getSchemas(meta).iterator();
+        while (iter.hasNext()) {
+            String schema = iter.next().toString();
             if (schemaRegex.matcher(schema).matches()) {
                 ResultSet rs = null;
                 try {

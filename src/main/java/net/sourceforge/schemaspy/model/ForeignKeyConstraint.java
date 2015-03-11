@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,12 +16,13 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.model;
+package schemaspy.model;
 
 import static java.sql.DatabaseMetaData.importedKeyCascade;
 import static java.sql.DatabaseMetaData.importedKeyNoAction;
 import static java.sql.DatabaseMetaData.importedKeyRestrict;
 import static java.sql.DatabaseMetaData.importedKeySetNull;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -55,7 +56,7 @@ public class ForeignKeyConstraint implements Comparable<ForeignKeyConstraint> {
     ForeignKeyConstraint(Table child, String name, int updateRule, int deleteRule) {
         this.name = name; // implied constraints will have a null name and override getName()
         if (finerEnabled)
-            logger.finer("Adding foreign key constraint '" + getName() + "' to " + child.getFullName());
+            logger.finer("Adding foreign key constraint '" + getName() + "' to " + child);
         childTable = child;
         this.deleteRule = deleteRule;
         this.updateRule = updateRule;
@@ -124,14 +125,6 @@ public class ForeignKeyConstraint implements Comparable<ForeignKeyConstraint> {
         return name;
     }
 
-    /**
-     * Is this a constraint defined in an XML metafile?
-     *
-     * @return
-     */
-    public Boolean isExplicit() {
-    	return getName().equals("Defined in XML");
-    }
     /**
      * Returns the parent table (the table that contains the referenced primary key
      * column).
@@ -309,8 +302,8 @@ public class ForeignKeyConstraint implements Comparable<ForeignKeyConstraint> {
         int rc = getName().compareToIgnoreCase(other.getName());
         if (rc == 0) {
             // should only get here if we're dealing with cross-schema references (rare)
-            String ours = getChildColumns().get(0).getTable().getContainer();
-            String theirs = other.getChildColumns().get(0).getTable().getContainer();
+            String ours = getChildColumns().get(0).getTable().getSchema();
+            String theirs = other.getChildColumns().get(0).getTable().getSchema();
             if (ours != null && theirs != null)
                 rc = ours.compareToIgnoreCase(theirs);
             else if (ours == null)
@@ -346,14 +339,14 @@ public class ForeignKeyConstraint implements Comparable<ForeignKeyConstraint> {
         buf.append(childTable.getName());
         buf.append('.');
         buf.append(toString(childColumns));
-        buf.append(" references ");
-        if (parentTable.isRemote()) {
-            buf.append(parentTable.getContainer());
-            buf.append('.');
-        }
+        buf.append(" refs ");
         buf.append(parentTable.getName());
         buf.append('.');
         buf.append(toString(parentColumns));
+        if (parentTable.isRemote()) {
+            buf.append(" in ");
+            buf.append(parentTable.getSchema());
+        }
         if (name != null) {
             buf.append(" via ");
             buf.append(name);

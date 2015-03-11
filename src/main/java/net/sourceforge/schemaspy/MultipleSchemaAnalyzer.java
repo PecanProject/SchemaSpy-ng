@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy;
+package schemaspy;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,14 +30,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import net.sourceforge.schemaspy.model.ProcessExecutionException;
-import net.sourceforge.schemaspy.util.LineWriter;
-import net.sourceforge.schemaspy.view.HtmlMultipleSchemasIndexPage;
+import schemaspy.model.ProcessExecutionException;
+import schemaspy.util.LineWriter;
+import schemaspy.view.HtmlMultipleSchemasIndexPage;
 
 /**
  * @author John Currier
@@ -54,12 +52,8 @@ public final class MultipleSchemaAnalyzer {
         return instance;
     }
 
-    public void analyze(String dbName, DatabaseMetaData meta, String schemaSpec, List<String> schemas,
-            List<String> args, Config config) throws SQLException, IOException {
+    public void analyze(String dbName, DatabaseMetaData meta, String schemaSpec, List<String> schemas, List<String> args, String user, File outputDir, String charset, String loadedFrom) throws SQLException, IOException {
         long start = System.currentTimeMillis();
-        String loadedFrom = Config.getLoadedFromJar();
-        File outputDir = config.getOutputDir();
-
         List<String> genericCommand = new ArrayList<String>();
         genericCommand.add("java");
         genericCommand.add("-Doneofmultipleschemas=true");
@@ -72,19 +66,6 @@ public final class MultipleSchemaAnalyzer {
             genericCommand.add(loadedFrom);
         }
 
-        args = new ArrayList<String>(args); // rude to modify caller's params, so make a copy
-
-        args.remove("-all");
-        SchemaAnalyzer.yankParam(args, "-o");
-        SchemaAnalyzer.yankParam(args, "-s");
-
-        // these are passed through environment variables
-        SchemaAnalyzer.yankParam(args, "-p");
-        SchemaAnalyzer.yankParam(args, "-i");
-        SchemaAnalyzer.yankParam(args, "-I");
-        SchemaAnalyzer.yankParam(args, "-x");
-        SchemaAnalyzer.yankParam(args, "-X");
-
         for (String next : args) {
             if (next.startsWith("-"))
                 genericCommand.add(next);
@@ -96,11 +77,7 @@ public final class MultipleSchemaAnalyzer {
         if (schemas == null) {
             System.out.println("Analyzing schemas that match regular expression '" + schemaSpec + "':");
             System.out.println("(use -schemaSpec on command line or in .properties to exclude other schemas)");
-            populatedSchemas = getPopulatedSchemas(meta, schemaSpec, false);
-            if (populatedSchemas.isEmpty())
-                populatedSchemas = getPopulatedSchemas(meta, schemaSpec, true);
-            if (populatedSchemas.isEmpty())
-                populatedSchemas = Arrays.asList(new String[] {config.getUser()});
+            populatedSchemas = getPopulatedSchemas(meta, schemaSpec, user);
         } else {
             System.out.println("Analyzing schemas:");
             populatedSchemas = schemas;
@@ -110,28 +87,10 @@ public final class MultipleSchemaAnalyzer {
             System.out.print(" " + populatedSchema);
         System.out.println();
 
-        writeIndexPage(dbName, populatedSchemas, meta, outputDir, config.getCharset());
-
-        Map<String, String> env = System.getenv();
-        List<String> childEnv = new ArrayList<String>();
-        for (Entry<String, String> entry : env.entrySet()) {
-            childEnv.add(entry.getKey() + '=' + entry.getValue());
-        }
-
-        // safer to pass password in environment so it can't be directly seen in cmd line
-        childEnv.add("schemaspy.pw=" + config.getPassword());
-
-        // some shells expand these regular expressions, so attempt to preserve them
-        // by passing in the environment
-        childEnv.add("schemaspy.tableInclusions=" + config.getTableInclusions());
-        childEnv.add("schemaspy.tableExclusions=" + config.getTableExclusions());
-        childEnv.add("schemaspy.columnExclusions=" + config.getColumnExclusions());
-        childEnv.add("schemaspy.indirectColumnExclusions=" + config.getIndirectColumnExclusions());
+        writeIndexPage(dbName, populatedSchemas, meta, outputDir, charset);
 
         for (String schema : populatedSchemas) {
             List<String> command = new ArrayList<String>(genericCommand);
-            // if no database was specified then we're dealing with a database
-            // that treats a schema as the database
             if (dbName == null)
                 command.add("-db");
             else
@@ -141,8 +100,7 @@ public final class MultipleSchemaAnalyzer {
             command.add(new File(outputDir, schema).toString());
             System.out.println("Analyzing " + schema);
             System.out.flush();
-            logger.fine("Analyzing schema with: " + command);
-            Process java = Runtime.getRuntime().exec(command.toArray(new String[]{}), childEnv.toArray(new String[]{}));
+            Process java = Runtime.getRuntime().exec(command.toArray(new String[]{}));
             new ProcessOutputReader(java.getInputStream(), System.out).start();
             new ProcessOutputReader(java.getErrorStream(), System.err).start();
 
@@ -166,8 +124,9 @@ public final class MultipleSchemaAnalyzer {
         System.out.println("Start with " + new File(outputDir, "index.html"));
     }
 
-    public void analyze(String dbName, List<String> schemas, List<String> args, Config config) throws SQLException, IOException {
-        analyze(dbName, null, null, schemas, args, config);
+    public void analyze(String dbName, List<String> schemas, List<String> args,
+            String user, File outputDir, String charset, String loadedFromJar) throws SQLException, IOException {
+        analyze(dbName, null, null, schemas, args, user, outputDir, charset, loadedFromJar);
     }
 
    private void writeIndexPage(String dbName, List<String> populatedSchemas, DatabaseMetaData meta, File outputDir, String charset) throws IOException {
@@ -178,14 +137,13 @@ public final class MultipleSchemaAnalyzer {
         }
     }
 
-    private List<String> getPopulatedSchemas(DatabaseMetaData meta, String schemaSpec, boolean isCatalog) throws SQLException {
+    private List<String> getPopulatedSchemas(DatabaseMetaData meta, String schemaSpec, String user) throws SQLException {
         List<String> populatedSchemas;
 
-        if ((!isCatalog && meta.supportsSchemasInTableDefinitions()) ||
-             (isCatalog && meta.supportsCatalogsInTableDefinitions())) {
+        if (meta.supportsSchemasInTableDefinitions()) {
             Pattern schemaRegex = Pattern.compile(schemaSpec);
 
-            populatedSchemas = DbAnalyzer.getPopulatedSchemas(meta, schemaSpec, isCatalog);
+            populatedSchemas = DbAnalyzer.getPopulatedSchemas(meta, schemaSpec);
             Iterator<String> iter = populatedSchemas.iterator();
             while (iter.hasNext()) {
                 String schema = iter.next();
@@ -203,7 +161,7 @@ public final class MultipleSchemaAnalyzer {
                 }
             }
         } else {
-            populatedSchemas = new ArrayList<String>();
+            populatedSchemas = Arrays.asList(new String[] {user});
         }
 
         return populatedSchemas;

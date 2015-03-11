@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.model.xml;
+package schemaspy.model.xml;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +36,6 @@ public class TableMeta {
     private final String name;
     private final String comments;
     private final List<TableColumnMeta> columns = new ArrayList<TableColumnMeta>();
-    private final String remoteCatalog;
     private final String remoteSchema;
     private static final Logger logger = Logger.getLogger(TableMeta.class.getName());
 
@@ -45,24 +44,22 @@ public class TableMeta {
 
         name = attribs.getNamedItem("name").getNodeValue();
 
-        Node node = attribs.getNamedItem("comments");
-        if (node == null)
-            node = attribs.getNamedItem("remarks");
-        if (node != null) {
-            String tmp = node.getNodeValue().trim();
+        Node commentNode = attribs.getNamedItem("comments");
+        if (commentNode != null) {
+            String tmp = commentNode.getNodeValue().trim();
             comments = tmp.length() == 0 ? null : tmp;
         } else {
             comments = null;
         }
 
-        node = attribs.getNamedItem("remoteSchema");
-        remoteSchema = node == null ? null : node.getNodeValue().trim();
-
-        node = attribs.getNamedItem("remoteCatalog");
-        remoteCatalog = node == null ? null : node.getNodeValue().trim();
+        Node remoteSchemaNode = attribs.getNamedItem("remoteSchema");
+        if (remoteSchemaNode != null) {
+            remoteSchema = remoteSchemaNode.getNodeValue().trim();
+        } else {
+            remoteSchema = null;
+        }
 
         logger.fine("Found XML table metadata for " + name +
-                    " remoteCatalog: " + remoteCatalog +
                     " remoteSchema: " + remoteSchema +
                     " comments: " + comments);
 
@@ -86,10 +83,6 @@ public class TableMeta {
         return columns;
     }
 
-    public String getRemoteCatalog() {
-        return remoteCatalog;
-    }
-    
     public String getRemoteSchema() {
         return remoteSchema;
     }

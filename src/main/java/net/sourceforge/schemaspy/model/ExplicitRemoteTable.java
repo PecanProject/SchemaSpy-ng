@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,36 +16,29 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.model;
+package schemaspy.model;
 
 import java.sql.SQLException;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
- * A remote table (exists in another schema (logically or physically))
- * that was created via XML metadata.
+ * A remote table (exists in another schema) that was explicitly created via XML metadata.
  *
  * @author John Currier
  */
-public class LogicalRemoteTable extends RemoteTable {
-    /**
-     * @param db
-     * @param catalog
-     * @param schema
-     * @param name
-     * @param baseSchema
-     * @throws SQLException
-     */
-    public LogicalRemoteTable(Database db, String catalog, String schema, String name, String baseSchema) throws SQLException {
-        super(db, catalog, schema, name, baseSchema);
+public class ExplicitRemoteTable extends RemoteTable {
+    private static final Pattern excludeNone = Pattern.compile("[^.]");
+
+    public ExplicitRemoteTable(Database db, String schema, String name, String baseSchema) throws SQLException {
+        super(db, schema, name, baseSchema, null, excludeNone, excludeNone);
     }
 
-    /**
-     * Don't attempt to query our metadata from the database.
-     *
-     * @return true
-     */
     @Override
-    public boolean isLogical() {
-        return true;
+    public void connectForeignKeys(Map<String, Table> tables, Pattern excludeIndirectColumns, Pattern excludeColumns) throws SQLException {
+        // this probably won't work, so ignore any failures...but try anyways just in case
+        try {
+            super.connectForeignKeys(tables, excludeIndirectColumns, excludeColumns);
+        } catch (SQLException ignore) {}
     }
 }

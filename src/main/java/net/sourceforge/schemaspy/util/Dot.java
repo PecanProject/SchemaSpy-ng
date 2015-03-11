@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,21 +16,19 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.util;
+package schemaspy.util;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.Collections;
+import java.util.Collections; 
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.sourceforge.schemaspy.Config;
+import schemaspy.Config;
 
 public class Dot {
     private static Dot instance = new Dot();
@@ -43,7 +41,6 @@ public class Dot {
     private String renderer;
     private final Set<String> validatedRenderers = Collections.synchronizedSet(new HashSet<String>());
     private final Set<String> invalidatedRenderers = Collections.synchronizedSet(new HashSet<String>());
-    private final Logger logger = Logger.getLogger(Dot.class.getName());
 
     private Dot() {
         String versionText = null;
@@ -57,7 +54,6 @@ public class Dot {
             Process process = Runtime.getRuntime().exec(dotCommand);
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
             String versionLine = reader.readLine();
-            logger.config("Version: \"" + versionLine + "\"");
 
             // look for a number followed numbers or dots
             Matcher matcher = Pattern.compile("[0-9][0-9.]+").matcher(versionLine);
@@ -66,23 +62,20 @@ public class Dot {
             } else {
                 if (Config.getInstance().isHtmlGenerationEnabled()) {
                     System.err.println();
-                    logger.warning("Invalid dot configuration detected.  '" +
+                    System.err.println("Invalid dot configuration detected.  '" +
                                         getDisplayableCommand(dotCommand) + "' returned:");
-                    logger.warning("   " + versionLine);
+                    System.err.println("   " + versionLine);
                 }
             }
         } catch (Exception validDotDoesntExist) {
             if (Config.getInstance().isHtmlGenerationEnabled()) {
-                System.err.println();
-                logger.warning("Failed to query Graphviz version information");
-                logger.warning("  with: " + getDisplayableCommand(dotCommand));
-                logger.warning("  " + validDotDoesntExist);
-                logger.log(Level.INFO, "Graphviz query failure details:", validDotDoesntExist);
+                System.err.println("Failed to query Graphviz version information");
+                System.err.println("  with: " + getDisplayableCommand(dotCommand));
+                System.err.println("  " + validDotDoesntExist);
             }
         }
 
         version = new Version(versionText);
-        validatedRenderers.add("");
     }
 
     public static Dot getInstance() {
@@ -153,28 +146,18 @@ public class Dot {
      * @param renderer
      */
     public void setRenderer(String renderer) {
-        if (isValid() && !supportsRenderer(renderer)) {
-            logger.info("renderer '" + renderer + "' is not supported by your version of dot");
-        }
-
         this.renderer = renderer;
     }
 
-    /**
-     * @see #setRenderer(String)
-     * @return the renderer to use
-     */
     public String getRenderer() {
-        if (renderer == null) {
-            setHighQuality(true);
-        }
-
-        return supportsRenderer(renderer) ? renderer : (requiresGdRenderer() ? ":gd" : "");
+        return renderer != null && supportsRenderer(renderer) ? renderer
+            : (requiresGdRenderer() ? ":gd" : "");
     }
 
     /**
-     * If <code>true</code> then generate output of "higher quality".
-     * Note that the default is intended to be "higher quality",
+     * If <code>true</code> then generate output of "higher quality"
+     * than the default ("lower quality").
+     * Note that the default is intended to be "lower quality",
      * but various installations of Graphviz may have have different abilities.
      * That is, some might not have the "lower quality" libraries and others might
      * not have the "higher quality" libraries.
@@ -184,8 +167,6 @@ public class Dot {
             setRenderer(":cairo");
         } else if (supportsRenderer(":gd")) {
             setRenderer(":gd");
-        } else {
-            setRenderer("");
         }
     }
 
@@ -232,7 +213,7 @@ public class Dot {
         }
 
         if (!validatedRenderers.contains(renderer)) {
-            logger.info("Failed to validate " + getFormat() + " renderer '" + renderer + "'.  Reverting to default renderer for " + getFormat() + '.');
+            //System.err.println("\nFailed to validate " + getFormat() + " renderer '" + renderer + "'.  Reverting to detault renderer for " + getFormat() + '.');
             invalidatedRenderers.add(renderer);
             return false;
         }
@@ -267,7 +248,7 @@ public class Dot {
      */
     public String generateDiagram(File dotFile, File diagramFile) throws DotFailure {
         StringBuilder mapBuffer = new StringBuilder(1024);
-
+        StringBuilder rsb = new StringBuilder();
         BufferedReader mapReader = null;
         // this one is for executing.  it can (hopefully) deal with funky things in filenames.
         String[] dotCommand = new String[] {
@@ -279,7 +260,6 @@ public class Dot {
         };
         // this one is for display purposes ONLY.
         String commandLine = getDisplayableCommand(dotCommand);
-        logger.fine(commandLine);
 
         try {
             Process process = Runtime.getRuntime().exec(dotCommand);
@@ -297,7 +277,8 @@ public class Dot {
                 throw new DotFailure("'" + commandLine + "' failed to create output file");
 
             // dot generates post-HTML 4.0.1 output...convert trailing />'s to >'s
-            return mapBuffer.toString().replace("/>", ">");
+            return mapBuffer.toString().replace("/>", ">").replace("href=\"","href=\"schemas?partial=").replace("tables/","").replace(".html","_table");
+            
         } catch (InterruptedException interrupted) {
             throw new RuntimeException(interrupted);
         } catch (DotFailure failed) {

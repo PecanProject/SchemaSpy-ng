@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.util;
+package schemaspy.util;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -32,15 +32,6 @@ import java.util.Map;
 public class CaseInsensitiveMap<V> extends HashMap<String, V>
 {
     private static final long serialVersionUID = 1L;
-
-    public CaseInsensitiveMap()
-    {
-    }
-
-    public CaseInsensitiveMap(int initialCapacity)
-    {
-        super(initialCapacity);
-    }
 
     @Override
     public V get(Object key) {

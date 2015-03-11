@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.model.xml;
+package schemaspy.model.xml;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,15 +34,8 @@ import org.w3c.dom.NodeList;
  */
 public class TableColumnMeta {
     private final String name;
-    private final String type;
-    private final boolean isPrimary;
-    private final String id;
-    private final int size;
-    private final int digits;
-    private final boolean isNullable;
     private final String comments;
-    private final String defaultValue;
-    private final boolean isAutoUpdated;
+    private final boolean isPrimary;
     private final List<ForeignKeyMeta> foreignKeys = new ArrayList<ForeignKeyMeta>();
     private final boolean isExcluded;
     private final boolean isAllExcluded;
@@ -55,10 +48,7 @@ public class TableColumnMeta {
         String tmp;
 
         name = attribs.getNamedItem("name").getNodeValue();
-
         Node node = attribs.getNamedItem("comments");
-        if (node == null)
-            node = attribs.getNamedItem("remarks");
         if (node != null) {
             tmp = node.getNodeValue().trim();
             comments = tmp.length() == 0 ? null : tmp;
@@ -66,30 +56,13 @@ public class TableColumnMeta {
             comments = null;
         }
 
-        node = attribs.getNamedItem("type");
-        type = node == null ? "Unknown" : node.getNodeValue();
-
-        node = attribs.getNamedItem("id");
-        id = node == null ? null : node.getNodeValue();
-
-        node = attribs.getNamedItem("size");
-        size = node == null ? 0 : Integer.parseInt(node.getNodeValue());
-
-        node = attribs.getNamedItem("digits");
-        digits = node == null ? 0 : Integer.parseInt(node.getNodeValue());
-        
-        node = attribs.getNamedItem("nullable");
-        isNullable = node == null ? false : evalBoolean(node.getNodeValue());
-
-        node = attribs.getNamedItem("autoUpdated");
-        isAutoUpdated = node == null ? false : evalBoolean(node.getNodeValue());
-        
         node = attribs.getNamedItem("primaryKey");
-        isPrimary = node == null ? false : evalBoolean(node.getNodeValue());
-        
-        node = attribs.getNamedItem("defaultValue");
-        defaultValue = node == null ? null : node.getNodeValue();
-        
+        if (node != null) {
+            isPrimary = evalBoolean(node.getNodeValue());
+        } else {
+            isPrimary = false;
+        }
+
         node = attribs.getNamedItem("disableImpliedKeys");
         if (node != null) {
             tmp = node.getNodeValue().trim().toLowerCase();
@@ -149,41 +122,13 @@ public class TableColumnMeta {
     public String getName() {
         return name;
     }
-    
-    public String getType() {
-        return type;
-    }
-    
-    public String getId() {
-        return id;
-    }
-    
-    public int getSize() {
-        return size;
-    }
-    
-    public int getDigits() {
-        return digits;
-    }
-    
-    public boolean isPrimary() {
-        return isPrimary;
-    }
-
-    public boolean isNullable() {
-        return isNullable;
-    }
-    
-    public boolean isAutoUpdated() {
-        return isAutoUpdated;
-    }
 
     public String getComments() {
         return comments;
     }
-    
-    public String getDefaultValue() {
-        return defaultValue;
+
+    public boolean isPrimary() {
+        return isPrimary;
     }
 
     public List<ForeignKeyMeta> getForeignKeys() {

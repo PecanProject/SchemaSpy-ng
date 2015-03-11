@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.model;
+package schemaspy.model;
 
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -34,14 +34,13 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.model.xml.ForeignKeyMeta;
-import net.sourceforge.schemaspy.model.xml.TableColumnMeta;
-import net.sourceforge.schemaspy.model.xml.TableMeta;
-import net.sourceforge.schemaspy.util.CaseInsensitiveMap;
+import schemaspy.Config;
+import schemaspy.model.xml.ForeignKeyMeta;
+import schemaspy.model.xml.TableColumnMeta;
+import schemaspy.model.xml.TableMeta;
+import schemaspy.util.CaseInsensitiveMap;
 
 /**
  * A <code>Table</code> is one of the basic building blocks of SchemaSpy
@@ -50,49 +49,45 @@ import net.sourceforge.schemaspy.util.CaseInsensitiveMap;
  * @author John Currier
  */
 public class Table implements Comparable<Table> {
-    private final String catalog;
     private final String schema;
     private final String name;
-    private final String fullName;
-    private final String container;
     protected final CaseInsensitiveMap<TableColumn> columns = new CaseInsensitiveMap<TableColumn>();
     private final List<TableColumn> primaryKeys = new ArrayList<TableColumn>();
     private final CaseInsensitiveMap<ForeignKeyConstraint> foreignKeys = new CaseInsensitiveMap<ForeignKeyConstraint>();
     private final CaseInsensitiveMap<TableIndex> indexes = new CaseInsensitiveMap<TableIndex>();
     private       Object id;
     private final Map<String, String> checkConstraints = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
-    private Long numRows;
+    private Integer numRows;
     protected final Database db;
+    protected final Properties properties;
     private       String comments;
     private int maxChildren;
     private int maxParents;
     private final static Logger logger = Logger.getLogger(Table.class.getName());
-    private final static boolean fineEnabled = logger.isLoggable(Level.FINE);
-    private final static boolean finerEnabled = logger.isLoggable(Level.FINER);
 
     /**
      * Construct a table that knows everything about the database table's metadata
      *
      * @param db
-     * @param catalog
      * @param schema
      * @param name
      * @param comments
+     * @param properties
+     * @param excludeIndirectColumns
+     * @param excludeColumns
      * @throws SQLException
      */
-    public Table(Database db, String catalog, String schema, String name, String comments) throws SQLException {
-        this.db = db;
-        this.catalog = catalog;
+    public Table(Database db, String schema, String name, String comments, Properties properties, Pattern excludeIndirectColumns, Pattern excludeColumns) throws SQLException {
         this.schema = schema;
-        this.container = schema != null ? schema : catalog != null ? catalog : db.getName();
         this.name = name;
-        this.fullName = getFullName(db.getName(), catalog, schema, name);
-        if (fineEnabled)
-            logger.fine("Creating " + getClass().getSimpleName() + " " + fullName);
+        this.db = db;
+        this.properties = properties;
+        logger.fine("Creating " + getClass().getSimpleName().toLowerCase() + " " +
+                schema == null ? name : (schema + '.' + name));
         setComments(comments);
-        initColumns();
+        initColumns(excludeIndirectColumns, excludeColumns);
         initIndexes();
-        initPrimaryKeys();
+        initPrimaryKeys(db.getMetaData());
     }
 
     /**
@@ -100,23 +95,22 @@ public class Table implements Comparable<Table> {
      * (and, in some cases, do the reverse as well).
      *
      * @param tables
+     * @param excludeIndirectColumns
+     * @param excludeColumns
      * @throws SQLException
      */
-    public void connectForeignKeys(Map<String, Table> tables) throws SQLException {
-        if (finerEnabled)
-            logger.finer("Connecting foreign keys to " + getFullName());
+    public void connectForeignKeys(Map<String, Table> tables, Pattern excludeIndirectColumns, Pattern excludeColumns) throws SQLException {
         ResultSet rs = null;
 
         try {
-            // get our foreign keys that reference other tables' primary keys
-            rs = db.getMetaData().getImportedKeys(getCatalog(), getSchema(), getName());
+            rs = db.getMetaData().getImportedKeys(null, getSchema(), getName());
 
             while (rs.next()) {
                 addForeignKey(rs.getString("FK_NAME"), rs.getString("FKCOLUMN_NAME"),
-                        rs.getString("PKTABLE_CAT"), rs.getString("PKTABLE_SCHEM"),
-                        rs.getString("PKTABLE_NAME"), rs.getString("PKCOLUMN_NAME"),
+                        rs.getString("PKTABLE_SCHEM"), rs.getString("PKTABLE_NAME"),
+                        rs.getString("PKCOLUMN_NAME"),
                         rs.getInt("UPDATE_RULE"), rs.getInt("DELETE_RULE"),
-                        tables);
+                        tables, excludeIndirectColumns, excludeColumns);
             }
         } finally {
             if (rs != null)
@@ -126,18 +120,14 @@ public class Table implements Comparable<Table> {
         // also try to find all of the 'remote' tables in other schemas that
         // point to our primary keys (not necessary in the normal case
         // as we infer this from the opposite direction)
-        if (getSchema() != null || getCatalog() != null) {
+        if (getSchema() != null) {
             try {
-                // get the foreign keys that reference our primary keys
-                rs = db.getMetaData().getExportedKeys(getCatalog(), getSchema(), getName());
+                rs = db.getMetaData().getExportedKeys(null, getSchema(), getName());
 
                 while (rs.next()) {
-                    String otherCatalog = rs.getString("FKTABLE_CAT");
                     String otherSchema = rs.getString("FKTABLE_SCHEM");
-                    if (!String.valueOf(getSchema()).equals(String.valueOf(otherSchema)) ||
-                        !String.valueOf(getCatalog()).equals(String.valueOf(otherCatalog))) {
-                        db.addRemoteTable(otherCatalog, otherSchema, rs.getString("FKTABLE_NAME"), getSchema(), false);
-                    }
+                    if (!getSchema().equals(otherSchema))
+                        db.addRemoteTable(otherSchema, rs.getString("FKTABLE_NAME"), getSchema(), properties, excludeIndirectColumns, excludeColumns);
                 }
             } finally {
                 if (rs != null)
@@ -170,7 +160,6 @@ public class Table implements Comparable<Table> {
      * @param rs ResultSet from {@link DatabaseMetaData#getImportedKeys(String, String, String)}
      * rs.getString("FK_NAME");
      * rs.getString("FKCOLUMN_NAME");
-     * rs.getString("PKTABLE_CAT");
      * rs.getString("PKTABLE_SCHEM");
      * rs.getString("PKTABLE_NAME");
      * rs.getString("PKCOLUMN_NAME");
@@ -179,22 +168,15 @@ public class Table implements Comparable<Table> {
      * @throws SQLException
      */
     protected void addForeignKey(String fkName, String fkColName,
-                        String pkCatalog, String pkSchema, String pkTableName, String pkColName,
+                        String pkTableSchema, String pkTableName, String pkColName,
                         int updateRule, int deleteRule,
-                        Map<String, Table> tables) throws SQLException {
+                        Map<String, Table> tables,
+                        Pattern excludeIndirectColumns, Pattern excludeColumns) throws SQLException {
         if (fkName == null)
             return;
 
-        Pattern include = Config.getInstance().getTableInclusions();
-        Pattern exclude = Config.getInstance().getTableExclusions();
-
-        if (!include.matcher(pkTableName).matches() || exclude.matcher(pkTableName).matches()) {
-            if (fineEnabled)
-                logger.fine("Ignoring " + getFullName(db.getName(), pkCatalog, pkSchema, pkTableName) + " referenced by FK " + fkName);
-            return;
-        }
-
         ForeignKeyConstraint foreignKey = foreignKeys.get(fkName);
+
         if (foreignKey == null) {
             foreignKey = new ForeignKeyConstraint(this, fkName, updateRule, deleteRule);
 
@@ -205,18 +187,17 @@ public class Table implements Comparable<Table> {
         if (childColumn != null) {
             foreignKey.addChildColumn(childColumn);
 
-            Config config = Config.getInstance();
             Table parentTable = tables.get(pkTableName);
-
-            String parentContainer = pkSchema != null ? pkSchema : pkCatalog != null ? pkCatalog : db.getName();
-            String baseContainer = config.getSchema() != null ? config.getSchema() : config.getCatalog() != null ? config.getCatalog() : db.getName();
+            String parentSchema = pkTableSchema;
+            String baseSchema = Config.getInstance().getSchema();
 
             // if named table doesn't exist in this schema
             // or exists here but really referencing same named table in another schema
-            if (parentTable == null || !baseContainer.equals(parentContainer)) {
-                if (fineEnabled)
-                    logger.fine("Adding remote table " + getFullName(db.getName(), pkCatalog, pkSchema, pkTableName));
-                parentTable = db.addRemoteTable(pkCatalog, pkSchema, pkTableName, baseContainer, false);
+            if (parentTable == null ||
+                    (baseSchema != null && parentSchema != null &&
+                     !baseSchema.equals(parentSchema))) {
+                parentTable = db.addRemoteTable(parentSchema, pkTableName, baseSchema,
+                                        properties, excludeIndirectColumns, excludeColumns);
             }
 
             if (parentTable != null) {
@@ -244,21 +225,17 @@ public class Table implements Comparable<Table> {
      * @param meta
      * @throws SQLException
      */
-    private void initPrimaryKeys() throws SQLException {
+    private void initPrimaryKeys(DatabaseMetaData meta) throws SQLException {
+        if (properties == null)
+            return;
+
         ResultSet rs = null;
 
         try {
-            if (fineEnabled)
-                logger.fine("Querying primary keys for " + getFullName());
-
-            rs = db.getMetaData().getPrimaryKeys(getCatalog(), getSchema(), getName());
+            rs = meta.getPrimaryKeys(null, getSchema(), getName());
 
             while (rs.next())
                 setPrimaryColumn(rs);
-        } catch (SQLException exc) {
-            if (!isLogical()) {
-                throw exc;
-            }
         } finally {
             if (rs != null)
                 rs.close();
@@ -292,37 +269,38 @@ public class Table implements Comparable<Table> {
     }
 
     /**
+     * @param excludeIndirectColumns
+     * @param excludeColumns
      * @throws SQLException
      */
-    private void initColumns() throws SQLException {
+    private void initColumns(Pattern excludeIndirectColumns, Pattern excludeColumns) throws SQLException {
         ResultSet rs = null;
 
         synchronized (Table.class) {
             try {
-                rs = db.getMetaData().getColumns(getCatalog(), getSchema(), getName(), "%");
+                rs = db.getMetaData().getColumns(null, getSchema(), getName(), "%");
 
                 while (rs.next())
-                    addColumn(rs);
+                    addColumn(rs, excludeIndirectColumns, excludeColumns);
             } catch (SQLException exc) {
-                if (!isLogical()) {
-                    class ColumnInitializationFailure extends SQLException {
-                        private static final long serialVersionUID = 1L;
+                class ColumnInitializationFailure extends SQLException {
+                    private static final long serialVersionUID = 1L;
 
-                        public ColumnInitializationFailure(SQLException failure) {
-                            super("Failed to collect column details for " + (isView() ? "view" : "table") + " '" + getName() + "' in schema '" + getContainer() + "'");
-                            initCause(failure);
-                        }
+                    public ColumnInitializationFailure(SQLException failure) {
+                        super("Failed to collect column details for " + (isView() ? "view" : "table") + " '" + getName() + "' in schema '" + getSchema() + "'");
+                        initCause(failure);
                     }
-
-                    throw new ColumnInitializationFailure(exc);
                 }
+
+                throw new ColumnInitializationFailure(exc);
             } finally {
                 if (rs != null)
                     rs.close();
             }
         }
 
-        initColumnAutoUpdate(false);
+        if (!isView() && !isRemote())
+            initColumnAutoUpdate(false);
     }
 
     /**
@@ -333,18 +311,12 @@ public class Table implements Comparable<Table> {
         ResultSet rs = null;
         PreparedStatement stmt = null;
 
-        if (isView() || isRemote())
-            return;
-
         // we've got to get a result set with all the columns in it
         // so we can ask if the columns are auto updated
         // Ugh!!!  Should have been in DatabaseMetaData instead!!!
         StringBuilder sql = new StringBuilder("select * from ");
         if (getSchema() != null) {
             sql.append(getSchema());
-            sql.append('.');
-        } else if (getCatalog() != null) {
-            sql.append(getCatalog());
             sql.append('.');
         }
 
@@ -367,11 +339,9 @@ public class Table implements Comparable<Table> {
             }
         } catch (SQLException exc) {
             if (forceQuotes) {
-                if (!isLogical()) {
-                    // don't completely choke just because we couldn't do this....
-                    logger.warning("Failed to determine auto increment status: " + exc);
-                    logger.warning("SQL: " + sql.toString());
-                }
+                // don't completely choke just because we couldn't do this....
+                logger.warning("Failed to determine auto increment status: " + exc);
+                logger.warning("SQL: " + sql.toString());
             } else {
                 initColumnAutoUpdate(true);
             }
@@ -385,16 +355,18 @@ public class Table implements Comparable<Table> {
 
     /**
      * @param rs - from {@link DatabaseMetaData#getColumns(String, String, String, String)}
+     * @param excludeIndirectColumns
+     * @param excludeColumns
      * @throws SQLException
      */
-    protected void addColumn(ResultSet rs) throws SQLException {
+    protected void addColumn(ResultSet rs, Pattern excludeIndirectColumns, Pattern excludeColumns) throws SQLException {
         String columnName = rs.getString("COLUMN_NAME");
 
         if (columnName == null)
             return;
 
         if (getColumn(columnName) == null) {
-            TableColumn column = new TableColumn(this, rs);
+            TableColumn column = new TableColumn(this, rs, excludeIndirectColumns, excludeColumns);
 
             columns.put(column.getName(), column);
         }
@@ -426,22 +398,21 @@ public class Table implements Comparable<Table> {
         // first try to initialize using the index query spec'd in the .properties
         // do this first because some DB's (e.g. Oracle) do 'bad' things with getIndexInfo()
         // (they try to do a DDL analyze command that has some bad side-effects)
-        if (initIndexes(Config.getInstance().getDbProperties().getProperty("selectIndexesSql")))
+        if (initIndexes(properties.getProperty("selectIndexesSql")))
             return;
 
         // couldn't, so try the old fashioned approach
         ResultSet rs = null;
 
         try {
-            rs = db.getMetaData().getIndexInfo(getCatalog(), getSchema(), getName(), false, true);
+            rs = db.getMetaData().getIndexInfo(null, getSchema(), getName(), false, true);
 
             while (rs.next()) {
                 if (rs.getShort("TYPE") != DatabaseMetaData.tableIndexStatistic)
                     addIndex(rs);
             }
         } catch (SQLException exc) {
-            if (!isLogical())
-                logger.warning("Unable to extract index info for table '" + getName() + "' in schema '" + getContainer() + "': " + exc);
+            logger.warning("Unable to extract index info for table '" + getName() + "' in schema '" + getSchema() + "': " + exc);
         } finally {
             if (rs != null)
                 rs.close();
@@ -522,15 +493,6 @@ public class Table implements Comparable<Table> {
     }
 
     /**
-     * Returns the catalog that the table belongs to
-     *
-     * @return
-     */
-    public String getCatalog() {
-        return catalog;
-    }
-
-    /**
      * Returns the schema that the table belongs to
      *
      * @return
@@ -540,45 +502,12 @@ public class Table implements Comparable<Table> {
     }
 
     /**
-     * Returns the logical 'container' that the table
-     * lives in.  Basically it's the first non-<code>null</code>
-     * item out of <code>schema</code>, <code>catalog</code>
-     * and <code>database</code>.
-     *
-     * @return
-     */
-    public String getContainer() {
-        return container;
-    }
-
-    /**
      * Returns the name of the table
      *
      * @return
      */
     public String getName() {
         return name;
-    }
-
-    /**
-     * Returns the fully-qualified name of this table
-     *
-     * @return
-     */
-    public String getFullName() {
-        return fullName;
-    }
-
-    /**
-     * Returns the fully-qualified name of a table
-     *
-     * @return
-     */
-    public static String getFullName(String db, String catalog, String schema, String table) {
-        String fullName = (catalog == null && schema == null ? db + '.' : "") +
-                            (catalog == null ? "" : catalog + '.') +
-                            (schema == null ? "" : schema + '.') + table;
-        return fullName;
     }
 
     /**
@@ -934,14 +863,6 @@ public class Table implements Comparable<Table> {
     }
 
     /**
-     * Returns <code>true</code> if this table is logical (not physical), <code>false</code> otherwise
-     * @return
-     */
-    public boolean isLogical() {
-        return false;
-    }
-
-    /**
      * Returns <code>true</code> if this is a view, <code>false</code> otherwise
      *
      * @return
@@ -974,7 +895,7 @@ public class Table implements Comparable<Table> {
      *
      * @return
      */
-    public long getNumRows() {
+    public int getNumRows() {
         if (numRows == null) {
             numRows = Config.getInstance().isNumRowsEnabled() ? fetchNumRows() : -1;
         }
@@ -987,7 +908,7 @@ public class Table implements Comparable<Table> {
      *
      * @param numRows
      */
-    public void setNumRows(long numRows) {
+    public void setNumRows(int numRows) {
         this.numRows = numRows;
     }
 
@@ -1000,13 +921,13 @@ public class Table implements Comparable<Table> {
      * @return int
      * @throws SQLException
      */
-    protected long fetchNumRows() {
-        if (isView() || isRemote())
-            return -1;
+    protected int fetchNumRows() {
+        if (properties == null) // some "meta" tables don't have associated properties
+            return 0;
 
         SQLException originalFailure = null;
 
-        String sql = Config.getInstance().getDbProperties().getProperty("selectRowCountSql");
+        String sql = properties.getProperty("selectRowCountSql");
         if (sql != null) {
             PreparedStatement stmt = null;
             ResultSet rs = null;
@@ -1016,11 +937,11 @@ public class Table implements Comparable<Table> {
                 rs = stmt.executeQuery();
 
                 while (rs.next()) {
-                    return rs.getLong("row_count");
+                    return rs.getInt("row_count");
                 }
             } catch (SQLException sqlException) {
                 // don't die just because this failed
-                originalFailure = sqlException;
+            	originalFailure = sqlException;
             } finally {
                 if (rs != null) {
                     try {
@@ -1044,20 +965,17 @@ public class Table implements Comparable<Table> {
                 // except nested tables...try using '1' instead
                 return fetchNumRows("count(1)", false);
             } catch (SQLException try3Exception) {
-                if (!isLogical()) {
-                    logger.warning("Unable to extract the number of rows for table " + getName() + ", using '-1'");
-                    if (originalFailure != null)
-                        logger.warning(originalFailure.toString());
-                    logger.warning(try2Exception.toString());
-                    if (!String.valueOf(try2Exception.toString()).equals(try3Exception.toString()))
-                        logger.warning(try3Exception.toString());
-                }
+                logger.warning("Unable to extract the number of rows for table " + getName() + ", using '-1'");
+                if (originalFailure != null)
+                    logger.warning(originalFailure.toString());
+                logger.warning(try2Exception.toString());
+                logger.warning(try3Exception.toString());
                 return -1;
             }
         }
     }
 
-    protected long fetchNumRows(String clause, boolean forceQuotes) throws SQLException {
+    protected int fetchNumRows(String clause, boolean forceQuotes) throws SQLException {
         PreparedStatement stmt = null;
         ResultSet rs = null;
         StringBuilder sql = new StringBuilder("select ");
@@ -1065,9 +983,6 @@ public class Table implements Comparable<Table> {
         sql.append(" from ");
         if (getSchema() != null) {
             sql.append(getSchema());
-            sql.append('.');
-        } else if (getCatalog() != null) {
-            sql.append(getCatalog());
             sql.append('.');
         }
 
@@ -1078,12 +993,10 @@ public class Table implements Comparable<Table> {
             sql.append(db.getQuotedIdentifier(getName()));
 
         try {
-            if (finerEnabled)
-                logger.finer(sql.toString());
             stmt = db.getConnection().prepareStatement(sql.toString());
             rs = stmt.executeQuery();
             while (rs.next()) {
-                return rs.getLong(1);
+                return rs.getInt(1);
             }
             return -1;
         } catch (SQLException exc) {
@@ -1113,6 +1026,11 @@ public class Table implements Comparable<Table> {
         for (TableColumnMeta colMeta : tableMeta.getColumns()) {
             TableColumn col = getColumn(colMeta.getName());
             if (col == null) {
+                if (tableMeta.getRemoteSchema() == null) {
+                    logger.warning("Unrecognized column '" + colMeta.getName() + "' for table '" + getName() + '\'');
+                    continue;
+                }
+
                 col = addColumn(colMeta);
             }
 
@@ -1122,62 +1040,41 @@ public class Table implements Comparable<Table> {
     }
 
     /**
-     * Same as {@link #connectForeignKeys(Map, Database, Properties)},
+     * Same as {@link #connectForeignKeys(Map, Database, Properties, Pattern, Pattern)},
      * but uses XML-based metadata
      *
      * @param tableMeta
      * @param tables
+     * @param remoteTables
      */
-    public void connect(TableMeta tableMeta, Map<String, Table> tables) {
+    public void connect(TableMeta tableMeta, Map<String, Table> tables, Map<String, Table> remoteTables) {
         for (TableColumnMeta colMeta : tableMeta.getColumns()) {
             TableColumn col = getColumn(colMeta.getName());
 
-            if (col != null) {
-                // go thru the new foreign key defs and associate them with our columns
-                for (ForeignKeyMeta fk : colMeta.getForeignKeys()) {
-                    Table parent;
+             // go thru the new foreign key defs and associate them with our columns
+            for (ForeignKeyMeta fk : colMeta.getForeignKeys()) {
+                Table parent = fk.getRemoteSchema() == null ? tables.get(fk.getTableName())
+                                                            : remoteTables.get(fk.getRemoteSchema() + '.' + fk.getTableName());
+                if (parent != null) {
+                    TableColumn parentColumn = parent.getColumn(fk.getColumnName());
 
-                    if (fk.getRemoteCatalog() != null || fk.getRemoteSchema() != null) {
-                        try {
-                            // adds if doesn't exist
-                            parent = db.addRemoteTable(fk.getRemoteCatalog(), fk.getRemoteSchema(), fk.getTableName(), getContainer(), true);
-                        } catch (SQLException exc) {
-                            parent = null;
-                        }
+                    if (parentColumn == null) {
+                        logger.warning(parent.getName() + '.' + fk.getColumnName() + " doesn't exist");
                     } else {
-                        parent = tables.get(fk.getTableName());
-                    }
-
-                    if (parent != null) {
-                        TableColumn parentColumn = parent.getColumn(fk.getColumnName());
-
-                        if (parentColumn == null) {
-                            logger.warning("Undefined column '" + parent.getName() + '.' + fk.getColumnName() + "' referenced by '" + col.getTable()+ '.' + col + "' in XML metadata");
-                        } else {
-                            /**
-                             * Merely instantiating a foreign key constraint ties it
-                             * into its parent and child columns (& therefore their tables)
-                             */
-                            @SuppressWarnings("unused")
-                            ForeignKeyConstraint unused = new ForeignKeyConstraint(parentColumn, col) {
-                                @Override
-                                public String getName() {
-                                    return "Defined in XML";
-                                }
-                            };
-
-                            // they forgot to say it was a primary key
-                            if (!parentColumn.isPrimary()) {
-                                logger.warning("Assuming " + parentColumn.getTable() + '.' + parentColumn + " is a primary key due to being referenced by " + col.getTable() + '.' + col);
-                                parent.setPrimaryColumn(parentColumn);
+                        /**
+                         * Merely instantiating a foreign key constraint ties it
+                         * into its parent and child columns (& therefore their tables)
+                         */
+                        new ForeignKeyConstraint(parentColumn, col) {
+                            @Override
+                            public String getName() {
+                                return "Defined in XML";
                             }
-                        }
-                    } else {
-                        logger.warning("Undefined table '" + fk.getTableName() + "' referenced by '" + getName() + '.' + col.getName() + "' in XML metadata");
+                        };
                     }
+                } else {
+                    logger.warning("Undefined table '" + fk.getTableName() + "' referenced by '" + getName() + '.' + col.getName() + '\'');
                 }
-            } else {
-                logger.warning("Undefined column '" + getName() + '.' + colMeta.getName() + "' in XML metadata");
             }
         }
     }
@@ -1223,7 +1120,20 @@ public class Table implements Comparable<Table> {
         if (other == this)  // fast way out
             return 0;
 
-        return getFullName().compareToIgnoreCase(other.getFullName());
+        int rc = getName().compareToIgnoreCase(other.getName());
+        if (rc == 0) {
+            // should only get here if we're dealing with cross-schema references (rare)
+            String ours = getSchema();
+            String theirs = other.getSchema();
+            if (ours != null && theirs != null)
+                rc = ours.compareToIgnoreCase(theirs);
+            else if (ours == null)
+                rc = -1;
+            else
+                rc = 1;
+        }
+
+        return rc;
     }
 
     /**
@@ -1231,16 +1141,13 @@ public class Table implements Comparable<Table> {
      * by {@link TableColumn#getId() ID} (ignored if <code>null</code>)
      * followed by {@link TableColumn#getName() Name}.
      */
-    public static class ByColumnIdComparator implements Comparator<TableColumn> {
+    private static class ByColumnIdComparator implements Comparator<TableColumn> {
         public int compare(TableColumn column1, TableColumn column2) {
-            Object id1 = column1.getId();
-            Object id2 = column2.getId();
-
-            if (id1 == null || id2 == null)
+            if (column1.getId() == null || column2.getId() == null)
                 return column1.getName().compareToIgnoreCase(column2.getName());
-            if (id1 instanceof Number && id2 instanceof Number)
-                return ((Number)id1).intValue() - ((Number)id2).intValue();
-            return id1.toString().compareToIgnoreCase(id2.toString());
+            if (column1.getId() instanceof Number)
+                return ((Number)column1.getId()).intValue() - ((Number)column2.getId()).intValue();
+            return column1.getId().toString().compareToIgnoreCase(column2.getId().toString());
         }
     }
 }

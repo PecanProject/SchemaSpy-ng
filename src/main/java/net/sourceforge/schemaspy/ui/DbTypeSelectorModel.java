@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.ui;
+package schemaspy.ui;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,8 +25,8 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 import javax.swing.AbstractListModel;
 import javax.swing.ComboBoxModel;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.util.DbSpecificConfig;
+import schemaspy.Config;
+import schemaspy.util.DbSpecificConfig;
 
 /**
  * @author John Currier

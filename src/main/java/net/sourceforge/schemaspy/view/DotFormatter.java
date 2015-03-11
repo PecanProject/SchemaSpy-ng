@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,15 +28,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.Revision;
-import net.sourceforge.schemaspy.model.Database;
-import net.sourceforge.schemaspy.model.ForeignKeyConstraint;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.model.TableColumn;
-import net.sourceforge.schemaspy.util.Dot;
-import net.sourceforge.schemaspy.util.LineWriter;
-import net.sourceforge.schemaspy.view.DotNode.DotNodeConfig;
+import schemaspy.Config;
+import schemaspy.Revision;
+import schemaspy.model.Database;
+import schemaspy.model.ForeignKeyConstraint;
+import schemaspy.model.Table;
+import schemaspy.model.TableColumn;
+import schemaspy.util.Dot;
+import schemaspy.util.LineWriter;
+import schemaspy.view.DotNode.DotNodeConfig;
 
 /**
  * Format table data into .dot format to feed to Graphvis' dot program.
@@ -97,7 +97,7 @@ public class DotFormatter {
             if (!tablesWritten.add(relatedTable))
                 continue; // already written
 
-            nodes.put(relatedTable, new DotNode(relatedTable, "", new DotNodeConfig(false, false)));
+            nodes.put(relatedTable, new DotNode(relatedTable, true, ""));
             connectors.addAll(finder.getRelatedConnectors(relatedTable, table, true, includeImplied));
         }
 

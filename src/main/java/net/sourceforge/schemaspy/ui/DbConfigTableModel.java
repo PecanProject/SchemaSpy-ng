@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.ui;
+package schemaspy.ui;
 
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
@@ -27,10 +27,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import javax.swing.table.AbstractTableModel;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.Config.MissingRequiredParameterException;
-import net.sourceforge.schemaspy.util.DbSpecificConfig;
-import net.sourceforge.schemaspy.util.DbSpecificOption;
+import schemaspy.Config;
+import schemaspy.Config.MissingRequiredParameterException;
+import schemaspy.util.DbSpecificConfig;
+import schemaspy.util.DbSpecificOption;
 
 /**
  * @author John Currier

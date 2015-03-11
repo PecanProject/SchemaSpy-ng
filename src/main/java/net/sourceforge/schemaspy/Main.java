@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,16 +16,13 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy;
+package schemaspy;
 
-import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import net.sourceforge.schemaspy.model.ConnectionFailure;
-import net.sourceforge.schemaspy.model.EmptySchemaException;
-import net.sourceforge.schemaspy.model.InvalidConfigurationException;
-import net.sourceforge.schemaspy.model.ProcessExecutionException;
-import net.sourceforge.schemaspy.ui.MainFrame;
+import schemaspy.model.ConnectionFailure;
+import schemaspy.model.EmptySchemaException;
+import schemaspy.model.InvalidConfigurationException;
+import schemaspy.model.ProcessExecutionException;
+import schemaspy.ui.MainFrame;
 
 /**
  * @author John Currier
@@ -56,9 +53,6 @@ public class Main {
             System.err.println(badConfig.getMessage());
             if (badConfig.getCause() != null && !badConfig.getMessage().endsWith(badConfig.getMessage()))
                 System.err.println(" caused by " + badConfig.getCause().getMessage());
-            Logger logger = Logger.getLogger(Main.class.getName());
-            logger.log(Level.FINE, "Command line parameters: " + Arrays.asList(argv));
-            logger.log(Level.FINE, "Invalid configuration detected", badConfig);
         } catch (ProcessExecutionException badLaunch) {
             System.err.println(badLaunch.getMessage());
         } catch (Exception exc) {

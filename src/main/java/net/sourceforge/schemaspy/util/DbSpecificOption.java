@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.util;
+package schemaspy.util;
 
 public class DbSpecificOption {
     private final String name;
@@ -51,7 +51,7 @@ public class DbSpecificOption {
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + " name: '" + getName() + "' value: '" + getValue() + "' description: '" + getDescription() + "'";
+        return description;
     }
 }
 

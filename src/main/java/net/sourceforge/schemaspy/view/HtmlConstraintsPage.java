@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,13 +26,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import net.sourceforge.schemaspy.DbAnalyzer;
-import net.sourceforge.schemaspy.model.Database;
-import net.sourceforge.schemaspy.model.ForeignKeyConstraint;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.model.TableColumn;
-import net.sourceforge.schemaspy.util.HtmlEncoder;
-import net.sourceforge.schemaspy.util.LineWriter;
+import schemaspy.DbAnalyzer;
+import schemaspy.model.Database;
+import schemaspy.model.ForeignKeyConstraint;
+import schemaspy.model.Table;
+import schemaspy.model.TableColumn;
+import schemaspy.util.HtmlEncoder;
+import schemaspy.util.LineWriter;
 
 /**
  * The page that lists all of the constraints in the schema
@@ -58,15 +58,15 @@ public class HtmlConstraintsPage extends HtmlFormatter {
         return instance;
     }
 
-    public void write(Database database, List<ForeignKeyConstraint> constraints, Collection<Table> tables, LineWriter html) throws IOException {
-        writeHeader(database, html);
+    public void write(Database database, List<ForeignKeyConstraint> constraints, Collection<Table> tables, boolean hasOrphans, LineWriter html) throws IOException {
+        writeHeader(database, hasOrphans, html);
         writeForeignKeyConstraints(constraints, html);
         writeCheckConstraints(tables, html);
         writeFooter(html);
     }
 
-    private void writeHeader(Database database, LineWriter html) throws IOException {
-        writeHeader(database, null, "Constraints", html);
+    private void writeHeader(Database database, boolean hasOrphans, LineWriter html) throws IOException {
+        writeHeader(database, null, "Constraints", hasOrphans, html);
         html.writeln("<div class='indent'>");
     }
 
@@ -92,8 +92,12 @@ public class HtmlConstraintsPage extends HtmlFormatter {
         html.write(String.valueOf(constraintsByName.size()));
         html.writeln(" Foreign Key Constraints:</b>");
         html.writeln("</td><td class='container' align='right'>");
+        html.writeln("<table>");
         if (sourceForgeLogoEnabled())
-            html.writeln("  <a href='http://sourceforge.net' target='_blank'><img src='http://sourceforge.net/sflogo.php?group_id=137197&amp;type=1' alt='SourceForge.net' border='0' height='31' width='88'></a>");
+            html.writeln("  <tr><td class='container' align='right' valign='top'><a href='http://sourceforge.net' target='_blank'><img src='http://sourceforge.net/sflogo.php?group_id=137197&amp;type=1' alt='SourceForge.net' border='0' height='31' width='88'></a></td></tr>");
+        html.writeln("<tr><td class='container'>");
+        writeFeedMe(html);
+        html.writeln("</td></tr></table>");
         html.writeln("</td></tr>");
         html.writeln("</table><br>");
         html.writeln("<table class='dataTable' border='1' rules='groups'>");
@@ -142,7 +146,7 @@ public class HtmlConstraintsPage extends HtmlFormatter {
         for (Iterator<TableColumn> iter = constraint.getChildColumns().iterator(); iter.hasNext(); ) {
             TableColumn column = iter.next();
             html.write("<a href='tables/");
-            html.write(urlEncode(column.getTable().getName()));
+            html.write(column.getTable().getName());
             html.write(".html'>");
             html.write(column.getTable().getName());
             html.write("</a>");
@@ -156,7 +160,7 @@ public class HtmlConstraintsPage extends HtmlFormatter {
         for (Iterator<TableColumn> iter = constraint.getParentColumns().iterator(); iter.hasNext(); ) {
             TableColumn column = iter.next();
             html.write("<a href='tables/");
-            html.write(urlEncode(column.getTable().getName()));
+            html.write(column.getTable().getName());
             html.write(".html'>");
             html.write(column.getTable().getName());
             html.write("</a>");
@@ -230,7 +234,7 @@ public class HtmlConstraintsPage extends HtmlFormatter {
         for (String name : constraints.keySet()) {
             html.writeln(" <tr>");
             html.write("  <td class='detail' valign='top'><a href='tables/");
-            html.write(urlEncode(table.getName()));
+            html.write(table.getName());
             html.write(".html'>");
             html.write(table.getName());
             html.write("</a></td>");

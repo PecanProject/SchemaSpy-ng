@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.ui;
+package schemaspy.ui;
 
 import java.awt.BorderLayout;
 import java.awt.event.ItemEvent;
@@ -32,7 +32,7 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
-import net.sourceforge.schemaspy.util.DbSpecificConfig;
+import schemaspy.util.DbSpecificConfig;
 
 /**
  * @author John Currier

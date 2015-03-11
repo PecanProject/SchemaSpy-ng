@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,11 +16,11 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.model.TableColumn;
-import net.sourceforge.schemaspy.util.Dot;
+import schemaspy.model.Table;
+import schemaspy.model.TableColumn;
+import schemaspy.util.Dot;
 
 /**
  * Represents Graphvis dot's concept of an edge.  That is, a connector between two nodes.
@@ -33,7 +33,6 @@ public class DotConnector implements Comparable<DotConnector> {
     private final TableColumn childColumn;
     private final Table childTable;
     private final boolean implied;
-    private final boolean explicit;
     private final boolean bottomJustify;
     private String parentPort;
     private String childPort;
@@ -45,11 +44,10 @@ public class DotConnector implements Comparable<DotConnector> {
      * @param childColumn TableColumn
      * @param implied boolean
      */
-    public DotConnector(TableColumn parentColumn, TableColumn childColumn, boolean implied, boolean explicit) {
+    public DotConnector(TableColumn parentColumn, TableColumn childColumn, boolean implied) {
         this.parentColumn = parentColumn;
         this.childColumn = childColumn;
         this.implied = implied;
-        this.explicit = explicit;
         parentPort = parentColumn.getName();
         parentTable = parentColumn.getTable();
         childPort = childColumn.getName();
@@ -69,10 +67,6 @@ public class DotConnector implements Comparable<DotConnector> {
 
     public boolean isImplied() {
         return implied;
-    }
-
-    public boolean isExplicit() {
-        return explicit;
     }
 
     /**
@@ -100,7 +94,7 @@ public class DotConnector implements Comparable<DotConnector> {
         StringBuilder edge = new StringBuilder();
         edge.append("  \"");
         if (childTable.isRemote()) {
-            edge.append(childTable.getContainer());
+            edge.append(childTable.getSchema());
             edge.append('.');
         }
         edge.append(childTable.getName());
@@ -111,7 +105,7 @@ public class DotConnector implements Comparable<DotConnector> {
             edge.append("s");
         edge.append("w -> \"");
         if (parentTable.isRemote()) {
-            edge.append(parentTable.getContainer());
+            edge.append(parentTable.getSchema());
             edge.append('.');
         }
         edge.append(parentTable.getName());
@@ -149,9 +143,7 @@ public class DotConnector implements Comparable<DotConnector> {
         else
             edge.append("crowodot");// zero or more children
 
-        if (explicit)
-            edge.append(" style=dotted");
-        else if (implied)
+        if (implied)
             edge.append(" style=dashed");
         edge.append("];");
 

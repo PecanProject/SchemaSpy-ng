@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,13 +16,13 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.model.TableColumn;
+import schemaspy.model.Table;
+import schemaspy.model.TableColumn;
 
 /**
  * Format table data into .dot format to feed to Graphvis' dot program.
@@ -98,9 +98,8 @@ public class DotConnectorFinder {
             if (targetTable == null && !includeExcluded && parentColumn.isExcluded())
                 continue;
             boolean implied = column.getParentConstraint(parentColumn).isImplied();
-            boolean explicit = column.getParentConstraint(parentColumn).isExplicit();
             if (!implied || includeImplied) {
-                relatedConnectors.add(new DotConnector(parentColumn, column, implied, explicit));
+                relatedConnectors.add(new DotConnector(parentColumn, column, implied));
             }
         }
 
@@ -111,9 +110,8 @@ public class DotConnectorFinder {
             if (targetTable == null && !includeExcluded && childColumn.isExcluded())
                 continue;
             boolean implied = column.getChildConstraint(childColumn).isImplied();
-            boolean explicit = column.getChildConstraint(childColumn).isExplicit();
             if (!implied || includeImplied) {
-                relatedConnectors.add(new DotConnector(column, childColumn, implied, explicit));
+                relatedConnectors.add(new DotConnector(column, childColumn, implied));
             }
         }
 

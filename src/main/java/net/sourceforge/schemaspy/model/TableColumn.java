@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -12,11 +12,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public
+ * You should have received a copy of the GNU Lesser General Public 
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.model;
+package schemaspy.model;
 
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -30,15 +30,13 @@ import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.model.xml.TableColumnMeta;
+import schemaspy.model.xml.TableColumnMeta;
 
 public class TableColumn {
     private final Table table;
     private final String name;
     private final Object id;
-    private       String type;
-    private       String shortType;
+    private final String type;
     private final int length;
     private final int decimalDigits;
     private final String detailedSize;
@@ -63,7 +61,7 @@ public class TableColumn {
      * @param rs ResultSet returned from {@link DatabaseMetaData#getColumns(String, String, String, String)}
      * @throws SQLException
      */
-    TableColumn(Table table, ResultSet rs) throws SQLException {
+    TableColumn(Table table, ResultSet rs, Pattern excludeIndirectColumns, Pattern excludeColumns) throws SQLException {
         this.table = table;
 
         // names and types are typically reused *many* times in a database,
@@ -94,9 +92,6 @@ public class TableColumn {
         setComments(rs.getString("REMARKS"));
         id = new Integer(rs.getInt("ORDINAL_POSITION") - 1);
 
-        Pattern excludeIndirectColumns = Config.getInstance().getIndirectColumnExclusions();
-        Pattern excludeColumns = Config.getInstance().getColumnExclusions();
-
         isAllExcluded = matches(excludeColumns);
         isExcluded = isAllExcluded || matches(excludeIndirectColumns);
         if (isExcluded && finerEnabled) {
@@ -116,20 +111,14 @@ public class TableColumn {
     public TableColumn(Table table, TableColumnMeta colMeta) {
         this.table = table;
         name = colMeta.getName();
-        id = colMeta.getId();
-        type = colMeta.getType();
-        length = colMeta.getSize();
-        decimalDigits = colMeta.getDigits();
-        StringBuilder buf = new StringBuilder();
-        buf.append(length);
-        if (decimalDigits > 0) {
-            buf.append(',');
-            buf.append(decimalDigits);
-        }
-        detailedSize = buf.toString();
-        isNullable = colMeta.isNullable();
-        isAutoUpdated = colMeta.isAutoUpdated();
-        defaultValue = colMeta.getDefaultValue();
+        id = null;
+        type = "Unknown";
+        length = 0;
+        decimalDigits = 0;
+        detailedSize = "";
+        isNullable = false;
+        isAutoUpdated = false;
+        defaultValue = null;
         comments = colMeta.getComments();
     }
 
@@ -167,33 +156,6 @@ public class TableColumn {
      */
     public String getType() {
         return type;
-    }
-
-    /**
-     * Normally only used for "special" types such as enums.
-     *
-     * @param type
-     */
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    /**
-     * Abbreviated form of {@link #getType()}
-     *
-     * @return
-     */
-    public String getShortType() {
-        return shortType == null ? type : shortType;
-    }
-
-    /**
-     * Abbreviated form of {@link #setType(String)}
-     *
-     * @param shortType
-     */
-    public void setShortType(String shortType) {
-        this.shortType = shortType;
     }
 
     /**
@@ -296,7 +258,7 @@ public class TableColumn {
     public boolean isForeignKey() {
         return !parents.isEmpty();
     }
-
+    ////////////////////////////////////////
     /**
      * Returns the value that the database uses for this column if one isn't provided.
      *

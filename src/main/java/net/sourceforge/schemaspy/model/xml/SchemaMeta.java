@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.model.xml;
+package schemaspy.model.xml;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,8 +33,8 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.model.InvalidConfigurationException;
+import schemaspy.Config;
+import schemaspy.model.InvalidConfigurationException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -79,8 +79,6 @@ public class SchemaMeta {
         Document doc = parse(metaFile);
 
         NodeList commentsNodes = doc.getElementsByTagName("comments");
-        if (commentsNodes == null)
-            commentsNodes = doc.getElementsByTagName("remarks");
         if (commentsNodes != null && commentsNodes.getLength() > 0)
             comments = commentsNodes.item(0).getTextContent();
         else
@@ -144,19 +142,12 @@ public class SchemaMeta {
         }
 
         try {
-            logger.info("Parsing " + file);
             doc = docBuilder.parse(file);
-        } catch (SAXException exc) {
-            throw new InvalidConfigurationException("Failed to parse " + file, exc);
-        } catch (IOException exc) {
-            throw new InvalidConfigurationException("Could not read " + file + ":", exc);
-        }
-        try {
             validate(doc);
         } catch (SAXException exc) {
-            logger.warning("Failed to validate " + file + ": " + exc);
+            throw new InvalidConfigurationException(file + " failed XML validation:", exc);
         } catch (IOException exc) {
-            logger.warning("Failed to validate " + file + ": " + exc);
+            throw new InvalidConfigurationException("Could not read " + file + ":", exc);
         }
 
         return doc;

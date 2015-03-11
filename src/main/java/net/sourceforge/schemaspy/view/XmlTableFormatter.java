@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -24,11 +24,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
-import net.sourceforge.schemaspy.model.ForeignKeyConstraint;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.model.TableColumn;
-import net.sourceforge.schemaspy.model.TableIndex;
-import net.sourceforge.schemaspy.util.DOMUtil;
+import schemaspy.model.ForeignKeyConstraint;
+import schemaspy.model.Table;
+import schemaspy.model.TableColumn;
+import schemaspy.model.TableIndex;
+import schemaspy.util.DOMUtil;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -94,10 +94,10 @@ public class XmlTableFormatter {
         tablesNode.appendChild(tableNode);
         if (table.getId() != null)
             DOMUtil.appendAttribute(tableNode, "id", String.valueOf(table.getId()));
-        DOMUtil.appendAttribute(tableNode, "catalog", table.getCatalog());
-        DOMUtil.appendAttribute(tableNode, "schema", table.getSchema());
+        if (table.getSchema() != null)
+            DOMUtil.appendAttribute(tableNode, "schema", table.getSchema());
         DOMUtil.appendAttribute(tableNode, "name", table.getName());
-        if (table.getNumRows() >= 0)
+        if (table.getNumRows() != -1)
             DOMUtil.appendAttribute(tableNode, "numRows", String.valueOf(table.getNumRows()));
         DOMUtil.appendAttribute(tableNode, "type", table.isView() ? "VIEW" : "TABLE");
         DOMUtil.appendAttribute(tableNode, "remarks", table.getComments() == null ? "" : table.getComments());
@@ -153,13 +153,10 @@ public class XmlTableFormatter {
 
         for (TableColumn childColumn : column.getChildren()) {
             Node childNode = document.createElement("child");
-            Table table = childColumn.getTable();
             columnNode.appendChild(childNode);
             ForeignKeyConstraint constraint = column.getChildConstraint(childColumn);
             DOMUtil.appendAttribute(childNode, "foreignKey", constraint.getName());
-            DOMUtil.appendAttribute(childNode, "catalog", table.getCatalog());
-            DOMUtil.appendAttribute(childNode, "schema", table.getSchema());
-            DOMUtil.appendAttribute(childNode, "table", table.getName());
+            DOMUtil.appendAttribute(childNode, "table", childColumn.getTable().getName());
             DOMUtil.appendAttribute(childNode, "column", childColumn.getName());
             DOMUtil.appendAttribute(childNode, "implied", String.valueOf(constraint.isImplied()));
             DOMUtil.appendAttribute(childNode, "onDeleteCascade", String.valueOf(constraint.isCascadeOnDelete()));
@@ -167,13 +164,10 @@ public class XmlTableFormatter {
 
         for (TableColumn parentColumn : column.getParents()) {
             Node parentNode = document.createElement("parent");
-            Table table = parentColumn.getTable();
             columnNode.appendChild(parentNode);
             ForeignKeyConstraint constraint = column.getParentConstraint(parentColumn);
             DOMUtil.appendAttribute(parentNode, "foreignKey", constraint.getName());
-            DOMUtil.appendAttribute(parentNode, "catalog", table.getCatalog());
-            DOMUtil.appendAttribute(parentNode, "schema", table.getSchema());
-            DOMUtil.appendAttribute(parentNode, "table", table.getName());
+            DOMUtil.appendAttribute(parentNode, "table", parentColumn.getTable().getName());
             DOMUtil.appendAttribute(parentNode, "column", parentColumn.getName());
             DOMUtil.appendAttribute(parentNode, "implied", String.valueOf(constraint.isImplied()));
             DOMUtil.appendAttribute(parentNode, "onDeleteCascade", String.valueOf(constraint.isCascadeOnDelete()));
