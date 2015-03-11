@@ -16,13 +16,13 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
-import java.io.File;
+import java.io.File; 
 import java.io.IOException;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.util.Dot;
-import net.sourceforge.schemaspy.util.LineWriter;
+import schemaspy.model.Table;
+import schemaspy.util.Dot;
+import schemaspy.util.LineWriter;
 
 public class HtmlTableDiagrammer extends HtmlDiagramFormatter {
     private static HtmlTableDiagrammer instance = new HtmlTableDiagrammer();
@@ -35,21 +35,21 @@ public class HtmlTableDiagrammer extends HtmlDiagramFormatter {
     }
 
     public boolean write(Table table, File diagramDir, LineWriter html) {
+        File oneDegreeDotFile = new File(diagramDir, table.getName() + ".1degree.dot");
+        File oneDegreeDiagramFile = new File(diagramDir, table.getName() + ".1degree.png");
+        File twoDegreesDotFile = new File(diagramDir, table.getName() + ".2degrees.dot");
+        File twoDegreesDiagramFile = new File(diagramDir, table.getName() + ".2degrees.png");
+        File impliedDotFile = new File(diagramDir, table.getName() + ".implied2degrees.dot");
+        File impliedDiagramFile = new File(diagramDir, table.getName() + ".implied2degrees.png");
+
         try {
             Dot dot = getDot();
             if (dot == null)
                 return false;
 
-            File oneDegreeDotFile = new File(diagramDir, table.getName() + ".1degree.dot");
-            File oneDegreeDiagramFile = new File(diagramDir, table.getName() + ".1degree." + dot.getFormat());
-            File twoDegreesDotFile = new File(diagramDir, table.getName() + ".2degrees.dot");
-            File twoDegreesDiagramFile = new File(diagramDir, table.getName() + ".2degrees." + dot.getFormat());
-            File impliedDotFile = new File(diagramDir, table.getName() + ".implied2degrees.dot");
-            File impliedDiagramFile = new File(diagramDir, table.getName() + ".implied2degrees." + dot.getFormat());
-
             String map = dot.generateDiagram(oneDegreeDotFile, oneDegreeDiagramFile);
 
-            html.write("<br><form action='get'><b>Close relationships");
+            /*html.write("<br><form action='get'><b>Close relationships");
             if (twoDegreesDotFile.exists()) {
                 html.writeln("</b><span class='degrees' id='degrees' title='Detail diminishes with increased separation from " + table.getName() + "'>");
                 html.write("&nbsp;within <label for='oneDegree'><input type='radio' name='degrees' id='oneDegree' checked>one</label>");
@@ -58,21 +58,21 @@ public class HtmlTableDiagrammer extends HtmlDiagramFormatter {
                 html.writeln("</form>");
             } else {
                 html.write(":</b></form>");
-            }
+            }*/
             html.write(map);
             map = null;
-            html.writeln("  <a name='diagram'><img id='oneDegreeImg' src='../diagrams/" + urlEncode(oneDegreeDiagramFile.getName()) + "' usemap='#oneDegreeRelationshipsDiagram' class='diagram' border='0' alt='' align='left'></a>");
+            html.writeln("  <a name='diagram'><img id='oneDegreeImg' src='images/" + oneDegreeDiagramFile.getName() + "' usemap='#oneDegreeRelationshipsDiagram' class='diagram' border='0' alt='' align='left'></a>");
 
             if (impliedDotFile.exists()) {
                 html.writeln(dot.generateDiagram(impliedDotFile, impliedDiagramFile));
-                html.writeln("  <a name='diagram'><img id='impliedTwoDegreesImg' src='../diagrams/" + urlEncode(impliedDiagramFile.getName()) + "' usemap='#impliedTwoDegreesRelationshipsDiagram' class='diagram' border='0' alt='' align='left'></a>");
+                html.writeln("  <a name='diagram'><img id='impliedTwoDegreesImg' src='images/" + impliedDiagramFile.getName() + "' usemap='#impliedTwoDegreesRelationshipsDiagram' class='diagram' border='0' alt='' align='left'></a>");
             } else {
                 impliedDotFile.delete();
                 impliedDiagramFile.delete();
             }
             if (twoDegreesDotFile.exists()) {
                 html.writeln(dot.generateDiagram(twoDegreesDotFile, twoDegreesDiagramFile));
-                html.writeln("  <a name='diagram'><img id='twoDegreesImg' src='../diagrams/" + urlEncode(twoDegreesDiagramFile.getName()) + "' usemap='#twoDegreesRelationshipsDiagram' class='diagram' border='0' alt='' align='left'></a>");
+                html.writeln("  <a name='diagram'><img id='twoDegreesImg' src='images/" + twoDegreesDiagramFile.getName() + "' usemap='#twoDegreesRelationshipsDiagram' class='diagram' border='0' alt='' align='left'></a>");
             } else {
                 twoDegreesDotFile.delete();
                 twoDegreesDiagramFile.delete();

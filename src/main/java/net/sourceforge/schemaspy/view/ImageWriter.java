@@ -16,11 +16,11 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
 import java.io.File;
 import java.io.IOException;
-import net.sourceforge.schemaspy.util.ResourceWriter;
+import schemaspy.util.ResourceWriter;
 
 public class ImageWriter extends ResourceWriter {
     private static ImageWriter instance = new ImageWriter();

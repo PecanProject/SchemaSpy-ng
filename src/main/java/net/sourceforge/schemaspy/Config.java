@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy;
+package schemaspy;
 
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
@@ -48,12 +48,11 @@ import java.util.jar.JarInputStream;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import net.sourceforge.schemaspy.model.InvalidConfigurationException;
-import net.sourceforge.schemaspy.util.DbSpecificConfig;
-import net.sourceforge.schemaspy.util.Dot;
-import net.sourceforge.schemaspy.util.PasswordReader;
-import net.sourceforge.schemaspy.view.DefaultSqlFormatter;
-import net.sourceforge.schemaspy.view.SqlFormatter;
+import schemaspy.model.InvalidConfigurationException;
+import schemaspy.util.DbSpecificConfig;
+import schemaspy.util.Dot;
+import schemaspy.view.DefaultSqlFormatter;
+import schemaspy.view.SqlFormatter;
 
 /**
  * Configuration of a SchemaSpy run
@@ -71,7 +70,6 @@ public class Config
     private File outputDir;
     private File graphvizDir;
     private String dbType;
-    private String catalog;
     private String schema;
     private List<String> schemas;
     private String user;
@@ -98,7 +96,6 @@ public class Config
     private String font;
     private Integer fontSize;
     private String description;
-    private Properties dbProperties;
     private String dbPropertiesLoadedFrom;
     private Level logLevel;
     private SqlFormatter sqlFormatter;
@@ -115,16 +112,11 @@ public class Config
     private Boolean evaluteAll;
     private Boolean highQuality;
     private Boolean lowQuality;
+    private Boolean adsEnabled;
     private String schemaSpec;  // used in conjunction with evaluateAll
-    private boolean hasOrphans = false;
-    private boolean hasRoutines = false;
     private boolean populating = false;
-    private List<String> columnDetails;
     public static final String DOT_CHARSET = "UTF-8";
     private static final String ESCAPED_EQUALS = "\\=";
-    private static final String DEFAULT_TABLE_INCLUSION = ".*"; // match everything
-    private static final String DEFAULT_TABLE_EXCLUSION = "";   // match nothing
-    private static final String DEFAULT_COLUMN_EXCLUSION = "[^.]";  // match nothing
 
     /**
      * Default constructor. Intended for when you want to inject properties
@@ -303,16 +295,6 @@ public class Config
         return db;
     }
 
-    public void setCatalog(String catalog) {
-        this.catalog = catalog;
-    }
-
-    public String getCatalog() {
-        if (catalog == null)
-            catalog = pullParam("-cat");
-        return catalog;
-    }
-
     public void setSchema(String schema) {
         this.schema = schema;
     }
@@ -427,17 +409,6 @@ public class Config
     public String getPassword() {
         if (password == null)
             password = pullParam("-p");
-
-        if (password == null && isPromptForPasswordEnabled())
-            password = new String(PasswordReader.getInstance().readPassword("Password: "));
-
-        if (password == null) {
-            // if -pfp is enabled when analyzing multiple schemas then
-            // we don't want to send the password on the command line,
-            // so see if it was passed in the environment (not ideal, but safer)
-            password = System.getenv("schemaspy.pw");
-        }
-
         return password;
     }
 
@@ -694,14 +665,13 @@ public class Config
         if (maxDbThreads == null) {
             Properties properties;
             try {
-                properties = determineDbProperties(getDbType());
+                properties = getDbProperties(getDbType());
             } catch (IOException exc) {
                 throw new InvalidConfigurationException("Failed to load properties for " + getDbType() + ": " + exc)
                                 .setParamName("-type");
             }
 
-            final int defaultMax = 15;  // not scientifically derived
-            int max = defaultMax;
+            int max = Integer.MAX_VALUE;
             String threads = properties.getProperty("dbThreads");
             if (threads == null)
                 threads = properties.getProperty("dbthreads");
@@ -713,7 +683,7 @@ public class Config
             if (threads != null)
                 max = Integer.parseInt(threads);
             if (max < 0)
-                max = defaultMax;
+                max = Integer.MAX_VALUE;
             else if (max == 0)
                 max = 1;
 
@@ -869,9 +839,7 @@ public class Config
         if (columnExclusions == null) {
             String strExclusions = pullParam("-X");
             if (strExclusions == null)
-                strExclusions = System.getenv("schemaspy.columnExclusions");
-            if (strExclusions == null)
-                strExclusions = DEFAULT_COLUMN_EXCLUSION;
+                strExclusions = "[^.]";   // match nothing
 
             columnExclusions = Pattern.compile(strExclusions);
         }
@@ -899,9 +867,7 @@ public class Config
         if (indirectColumnExclusions == null) {
             String strExclusions = pullParam("-x");
             if (strExclusions == null)
-                strExclusions = System.getenv("schemaspy.indirectColumnExclusions");
-            if (strExclusions == null)
-                strExclusions = DEFAULT_COLUMN_EXCLUSION;
+                strExclusions = "[^.]";   // match nothing
 
             indirectColumnExclusions = Pattern.compile(strExclusions);
         }
@@ -926,9 +892,7 @@ public class Config
         if (tableInclusions == null) {
             String strInclusions = pullParam("-i");
             if (strInclusions == null)
-                strInclusions = System.getenv("schemaspy.tableInclusions");
-            if (strInclusions == null)
-                strInclusions = DEFAULT_TABLE_INCLUSION;
+                strInclusions = ".*";     // match anything
 
             try {
                 tableInclusions = Pattern.compile(strInclusions);
@@ -957,9 +921,7 @@ public class Config
         if (tableExclusions == null) {
             String strExclusions = pullParam("-I");
             if (strExclusions == null)
-                strExclusions = System.getenv("schemaspy.tableExclusions");
-            if (strExclusions == null)
-                strExclusions = DEFAULT_TABLE_EXCLUSION;
+                strExclusions = "";  // match nothing
 
             try {
                 tableExclusions = Pattern.compile(strExclusions);
@@ -982,10 +944,8 @@ public class Config
             if (tmp != null) {
                 schemas = new ArrayList<String>();
 
-                for (String name : tmp.split("[\\s,'\"]")) {
-                    if (name.length() > 0)
-                        schemas.add(name);
-                }
+                for (String name : tmp.split("[ ,\"]"))
+                    schemas.add(name);
 
                 if (schemas.isEmpty())
                     schemas = null;
@@ -1044,59 +1004,6 @@ public class Config
         }
 
         return sqlFormatter;
-    }
-
-    /**
-     * Set the details to show on the columns page, where "details" are
-     * comma and/or space separated.
-     *
-     * Valid values:
-     * <ul>
-     * <li>id</li>
-     * <li>table</li>
-     * <li>column</li>
-     * <li>type</li>
-     * <li>size</li>
-     * <li>nulls</li>
-     * <li>auto</li>
-     * <li>default</li>
-     * <li>children</li>
-     * <li>parents</li>
-     * </ul>
-     *
-     * The default details are <code>"table column type size nulls auto default"</code>.
-     * Note that "column" is the initially displayed detail and must be included.
-     *
-     * @param columnDetails
-     */
-    public void setColumnDetails(String columnDetails) {
-        this.columnDetails = new ArrayList<String>();
-        if (columnDetails == null || columnDetails.length() == 0) {
-            // not specified, so use defaults
-            columnDetails = "id table column type size nulls auto default";
-        }
-
-        for (String detail : columnDetails.split("[\\s,'\"]")) {
-            if (detail.length() > 0) {
-                this.columnDetails.add(detail.toLowerCase());
-            }
-        }
-
-        if (!this.columnDetails.contains("column"))
-            throw new InvalidConfigurationException("'column' is a required column detail");
-    }
-
-    public void setColumnDetails(List<String> columnDetails) {
-        String details = columnDetails == null ? "[]" : columnDetails.toString();
-        setColumnDetails(details.substring(1, details.length() - 1));
-    }
-
-    public List<String> getColumnDetails() {
-        if (columnDetails == null) {
-            setColumnDetails(pullParam("-columndetails"));
-        }
-
-        return columnDetails;
     }
 
     public void setEvaluateAllEnabled(boolean enabled) {
@@ -1212,6 +1119,31 @@ public class Config
     }
 
     /**
+     * <code>true</code> if we should display advertisements.
+     * Defaults to <code>true</code>.<p>
+     * <b>Please do not disable ads unless absolutely necessary</b>.
+     *
+     * @return
+     */
+    public void setAdsEnabled(boolean enabled) {
+        adsEnabled = enabled;
+    }
+
+    /**
+     * Returns <code>true</code> if we should display advertisements.<p>
+     * <b>Please do not disable ads unless absolutely necessary</b>.
+     *
+     * @return
+     */
+    public boolean isAdsEnabled() {
+        if (adsEnabled == null) {
+            adsEnabled = !options.remove("-noads");
+        }
+
+        return adsEnabled ;
+    }
+
+    /**
      * Set the level of logging to perform.<p/>
      * The levels in descending order are:
      * <ul>
@@ -1276,77 +1208,18 @@ public class Config
         return dbHelpRequired;
     }
 
-    /**
-     * Returns the jar that we were loaded from
-     *
-     * @return
-     */
     public static String getLoadedFromJar() {
         String classpath = System.getProperty("java.class.path");
         return new StringTokenizer(classpath, File.pathSeparator).nextToken();
     }
 
     /**
-     * Not a true configuration item in that it's determined at runtime
-     */
-    public void setHasOrphans(boolean hasOrphans) {
-        this.hasOrphans = hasOrphans;
-    }
-
-    /**
-     * @see #setHasOrphans()
-     *
-     * @return
-     */
-    public boolean hasOrphans() {
-        return hasOrphans;
-    }
-
-    /**
-     * Not a true configuration item in that it's determined at runtime
-     */
-    public void setHasRoutines(boolean hasRoutines) {
-        this.hasRoutines = hasRoutines;
-    }
-
-    /**
-     * @see #setHasRoutines()
-     *
-     * @return
-     */
-    public boolean hasRoutines() {
-        return hasRoutines;
-    }
-
-    /**
-     * Returns the database properties to use.
-     * These should be determined by calling {@link #determineDbProperties(String)}.
-     * @return
-     * @throws InvalidConfigurationException
-     */
-    public Properties getDbProperties() throws InvalidConfigurationException {
-        if (dbProperties == null) {
-            try {
-                dbProperties = determineDbProperties(getDbType());
-            } catch (IOException exc) {
-                throw new InvalidConfigurationException(exc);
-            }
-        }
-
-        return dbProperties;
-    }
-
-    /**
-     * Determines the database properties associated with the specified type.
-     * A call to {@link #setDbProperties(Properties)} is expected after determining
-     * the complete set of properties.
-     *
      * @param type
      * @return
      * @throws IOException
      * @throws InvalidConfigurationException if db properties are incorrectly formed
      */
-    public Properties determineDbProperties(String type) throws IOException, InvalidConfigurationException {
+    public Properties getDbProperties(String type) throws IOException, InvalidConfigurationException {
         ResourceBundle bundle = null;
 
         try {
@@ -1396,7 +1269,7 @@ public class Config
             String refdKey = include.substring(separator + 2).trim();
 
             // recursively resolve the ref'd properties file and the ref'd key
-            Properties refdProps = determineDbProperties(refdType);
+            Properties refdProps = getDbProperties(refdType);
             props.put(refdKey, refdProps.getProperty(refdKey));
         }
 
@@ -1404,7 +1277,7 @@ public class Config
         String baseDbType = (String)props.remove("extends");
         if (baseDbType != null) {
             baseDbType = baseDbType.trim();
-            Properties baseProps = determineDbProperties(baseDbType);
+            Properties baseProps = getDbProperties(baseDbType);
 
             // overlay our properties on top of the base's
             baseProps.putAll(props);
@@ -1414,15 +1287,12 @@ public class Config
         // done with this level of recursion...restore original
         dbPropertiesLoadedFrom = saveLoadedFrom;
 
-        // this won't be correct until the final recursion exits
-        dbProperties = props;
-
         return props;
     }
 
     protected String getDbPropertiesLoadedFrom() throws IOException {
         if (dbPropertiesLoadedFrom == null)
-            determineDbProperties(getDbType());
+            getDbProperties(getDbType());
         return dbPropertiesLoadedFrom;
     }
 
@@ -1715,7 +1585,6 @@ public class Config
                 params.add(value);
             }
         }
-
         if (isEncodeCommentsEnabled())
             params.add("-ahic");
         if (isEvaluateAllEnabled())
@@ -1738,6 +1607,8 @@ public class Config
             params.add("-rails");
         if (isSingleSignOn())
             params.add("-sso");
+        if (!isAdsEnabled())
+            params.add("-noads");
         if (isSchemaDisabled())
             params.add("-noschema");
 
@@ -1756,8 +1627,6 @@ public class Config
         params.add(String.valueOf(getFontSize()));
         params.add("-t");
         params.add(getDbType());
-        isHighQuality();    // query to set renderer correctly
-        isLowQuality();     // query to set renderer correctly
         params.add("-renderer");  // instead of -hq and/or -lq
         params.add(getRenderer());
         value = getDescription();
@@ -1766,17 +1635,12 @@ public class Config
             params.add(value);
         }
         value = getPassword();
-        if (value != null && !isPromptForPasswordEnabled()) {
-            // note that we don't pass -pfp since child processes
-            // won't have a console
+        if (value != null) {
             params.add("-p");
             params.add(value);
         }
-        value = getCatalog();
-        if (value != null) {
-            params.add("-cat");
-            params.add(value);
-        }
+        if (isPromptForPasswordEnabled())
+            params.add("-pfp");
         value = getSchema();
         if (value != null) {
             params.add("-s");
@@ -1838,13 +1702,13 @@ public class Config
         params.add("-sqlFormatter");
         params.add(getSqlFormatter().getClass().getName());
         params.add("-i");
-        params.add(getTableInclusions().toString());
+        params.add(getTableInclusions().pattern());
         params.add("-I");
-        params.add(getTableExclusions().toString());
-        params.add("-X");
-        params.add(getColumnExclusions().toString());
+        params.add(getTableExclusions().pattern());
         params.add("-x");
-        params.add(getIndirectColumnExclusions().toString());
+        params.add(getColumnExclusions().pattern());
+        params.add("-X");
+        params.add(getIndirectColumnExclusions().pattern());
         params.add("-dbthreads");
         params.add(String.valueOf(getMaxDbThreads()));
         params.add("-maxdet");

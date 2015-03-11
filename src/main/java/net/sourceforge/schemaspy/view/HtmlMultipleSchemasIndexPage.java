@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
 import java.io.IOException;
 import java.sql.DatabaseMetaData;
@@ -24,8 +24,8 @@ import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.util.LineWriter;
+import schemaspy.Config;
+import schemaspy.util.LineWriter;
 
 /**
  * The page that contains links to the various schemas that were analyzed
@@ -94,7 +94,6 @@ public class HtmlMultipleSchemasIndexPage extends HtmlFormatter {
         html.writeln("</table>");
         html.writeln("<table width='100%'>");
         html.writeln(" <tr><td class='container'>");
-        writeGeneratedOn(connectTime, html);
         html.writeln(" </td></tr>");
         html.writeln(" <tr>");
         html.write("  <td class='container'>");
@@ -107,6 +106,7 @@ public class HtmlMultipleSchemasIndexPage extends HtmlFormatter {
         if (sourceForgeLogoEnabled())
             html.writeln("    <a href='http://sourceforge.net' target='_blank'><img src='http://sourceforge.net/sflogo.php?group_id=137197&amp;type=1' alt='SourceForge.net' border='0' height='31' width='88'></a><br>");
         html.write("    <br>");
+        writeFeedMe(html);
         html.writeln("  </td>");
         html.writeln(" </tr>");
         html.writeln("</table>");
@@ -147,7 +147,6 @@ public class HtmlMultipleSchemasIndexPage extends HtmlFormatter {
         index.writeln(" </tr>");
     }
 
-    @Override
     protected void writeTableOfContents(LineWriter html) throws IOException {
         // have to use a table to deal with a horizontal scrollbar showing up inappropriately
         html.writeln("<table id='headerHolder' cellspacing='0' cellpadding='0'><tr><td>");
@@ -158,13 +157,6 @@ public class HtmlMultipleSchemasIndexPage extends HtmlFormatter {
         html.writeln(" </ul>");
         html.writeln("</div>");
         html.writeln("</td></tr></table>");
-    }
-
-    @Override
-    protected void writeFooter(LineWriter html) throws IOException {
-        html.writeln("</tbody>");
-        html.writeln("</table>");
-        super.writeFooter(html);
     }
 
     /**

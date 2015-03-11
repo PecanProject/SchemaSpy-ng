@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
 import java.sql.DatabaseMetaData;
 import java.util.Arrays;
@@ -25,10 +25,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
-import net.sourceforge.schemaspy.model.Database;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.util.CaseInsensitiveMap;
-import net.sourceforge.schemaspy.util.HtmlEncoder;
+import schemaspy.model.Database;
+import schemaspy.model.Table;
+import schemaspy.util.CaseInsensitiveMap;
+import schemaspy.util.HtmlEncoder;
 
 /**
  * Default implementation of {@link SqlFormatter}
@@ -143,8 +143,8 @@ public class DefaultSqlFormatter implements SqlFormatter {
         {
             tablesByPossibleNames = new CaseInsensitiveMap<Table>();
 
-            tablesByPossibleNames.putAll(getTableMap(db.getTables()));
-            tablesByPossibleNames.putAll(getTableMap(db.getViews()));
+            tablesByPossibleNames.putAll(getTableMap(db.getTables(), db.getName()));
+            tablesByPossibleNames.putAll(getTableMap(db.getViews(), db.getName()));
         }
 
         return tablesByPossibleNames;
@@ -158,23 +158,25 @@ public class DefaultSqlFormatter implements SqlFormatter {
      * @param dbName
      * @return
      */
-    protected Map<String, Table> getTableMap(Collection<? extends Table> tables) {
+    protected Map<String, Table> getTableMap(Collection<? extends Table> tables, String dbName) {
         Map<String, Table> map = new CaseInsensitiveMap<Table>();
         for (Table t : tables) {
             String name = t.getName();
-            String container = t.getContainer();
+            String schema = t.getSchema();
+            if (schema == null)
+                schema = dbName;
 
             map.put(name, t);
             map.put("`" + name + "`", t);
             map.put("'" + name + "'", t);
             map.put("\"" + name + "\"", t);
-            map.put(container + "." + name, t);
-            map.put("`" + container + "`.`" + name + "`", t);
-            map.put("'" + container + "'.'" + name + "'", t);
-            map.put("\"" + container + "\".\"" + name + "\"", t);
-            map.put("`" + container + '.' + name + "`", t);
-            map.put("'" + container + '.' + name + "'", t);
-            map.put("\"" + container + '.' + name + "\"", t);
+            map.put(schema + "." + name, t);
+            map.put("`" + schema + "`.`" + name + "`", t);
+            map.put("'" + schema + "'.'" + name + "'", t);
+            map.put("\"" + schema + "\".\"" + name + "\"", t);
+            map.put("`" + schema + '.' + name + "`", t);
+            map.put("'" + schema + '.' + name + "'", t);
+            map.put("\"" + schema + '.' + name + "\"", t);
         }
 
         return map;

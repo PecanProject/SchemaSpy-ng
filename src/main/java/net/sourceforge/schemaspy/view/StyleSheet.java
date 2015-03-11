@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,9 +31,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.model.InvalidConfigurationException;
-import net.sourceforge.schemaspy.util.LineWriter;
+import schemaspy.Config;
+import schemaspy.model.InvalidConfigurationException;
+import schemaspy.util.LineWriter;
 
 /**
  * Represents our CSS style sheet (CSS) with accessors for important
@@ -55,6 +55,7 @@ public class StyleSheet {
     private String indexedColumnBackgroundColor;
     private String selectedTableBackgroundColor;
     private String excludedColumnBackgroundColor;
+    private String defaultColor="#FFFFFF";
     private final List<String> ids = new ArrayList<String>();
 
     private StyleSheet(BufferedReader cssReader) throws IOException {
@@ -68,14 +69,14 @@ public class StyleSheet {
         }
 
         css = data.toString();
-
+        //////////////////////////////REMOVE COMMENTS////////////////////////
         int startComment = data.indexOf("/*");
         while (startComment != -1) {
             int endComment = data.indexOf("*/");
             data.replace(startComment, endComment + 2, "");
             startComment = data.indexOf("/*");
         }
-
+        ////////////////////////////////////////////////////////////////////////
         StringTokenizer tokenizer = new StringTokenizer(data.toString(), "{}");
         String id = null;
         while (tokenizer.hasMoreTokens()) {
@@ -83,7 +84,8 @@ public class StyleSheet {
             if (id == null) {
                 id = token.toLowerCase();
                 ids.add(id);
-            } else {
+            } 
+            else {
                 Map<String, String> attribs = parseAttributes(token);
                 if (id.equals(".content"))
                     bodyBackgroundColor = attribs.get("background");
@@ -117,7 +119,7 @@ public class StyleSheet {
     public static StyleSheet getInstance() throws ParseException {
         if (instance == null) {
             try {
-                instance = new StyleSheet(new BufferedReader(getReader(Config.getInstance().getCss())));
+                instance = new StyleSheet(new BufferedReader(getReader(Config.getInstance().getCss())));//takes a file reader of the css
             } catch (IOException exc) {
                 throw new ParseException(exc);
             }
@@ -186,63 +188,73 @@ public class StyleSheet {
 
     public String getBodyBackground() {
         if (bodyBackgroundColor == null)
-            throw new MissingCssPropertyException(".content", "background");
+            ///throw new MissingCssPropertyException(".content", "background");
+            bodyBackgroundColor=defaultColor;
 
         return bodyBackgroundColor;
     }
 
     public String getTableBackground() {
         if (tableBackgroundColor == null)
-            throw new MissingCssPropertyException("td", "background-color");
+            //throw new MissingCssPropertyException("td", "background-color");
+            tableBackgroundColor=defaultColor;
 
         return tableBackgroundColor;
     }
 
     public String getTableHeadBackground() {
         if (tableHeadBackgroundColor == null)
-            throw new MissingCssPropertyException("th", "background-color");
+            //throw new MissingCssPropertyException("th", "background-color");
+            tableHeadBackgroundColor=defaultColor;
 
         return tableHeadBackgroundColor;
     }
 
     public String getPrimaryKeyBackground() {
         if (primaryKeyBackgroundColor == null)
-            throw new MissingCssPropertyException(".primaryKey", "background");
+            //throw new MissingCssPropertyException(".primaryKey", "background");
+            primaryKeyBackgroundColor=defaultColor;
 
         return primaryKeyBackgroundColor;
     }
 
     public String getIndexedColumnBackground() {
         if (indexedColumnBackgroundColor == null)
-            throw new MissingCssPropertyException(".indexedColumn", "background");
+           // throw new MissingCssPropertyException(".indexedColumn", "background");
+            indexedColumnBackgroundColor=defaultColor;
 
         return indexedColumnBackgroundColor;
     }
 
     public String getSelectedTableBackground() {
         if (selectedTableBackgroundColor == null)
-            throw new MissingCssPropertyException(".selectedTable", "background");
+            //throw new MissingCssPropertyException(".selectedTable", "background");
+            selectedTableBackgroundColor=defaultColor;
+
 
         return selectedTableBackgroundColor;
     }
 
     public String getExcludedColumnBackgroundColor() {
         if (excludedColumnBackgroundColor == null)
-            throw new MissingCssPropertyException(".excludedColumn", "background");
+            //throw new MissingCssPropertyException(".excludedColumn", "background");
+            excludedColumnBackgroundColor=defaultColor;
 
         return excludedColumnBackgroundColor;
     }
 
     public String getLinkColor() {
         if (linkColor == null)
-            throw new MissingCssPropertyException("a:link", "color");
+            //throw new MissingCssPropertyException("a:link", "color");
+            linkColor="#000";
 
         return linkColor;
     }
 
     public String getLinkVisitedColor() {
         if (linkVisitedColor == null)
-            throw new MissingCssPropertyException("a:visited", "color");
+            //throw new MissingCssPropertyException("a:visited", "color");
+            linkVisitedColor="#000";
 
         return linkVisitedColor;
     }

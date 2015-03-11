@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,16 +16,16 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
+package schemaspy.view;
 
 import java.text.NumberFormat;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.model.TableColumn;
-import net.sourceforge.schemaspy.model.TableIndex;
+import schemaspy.Config;
+import schemaspy.model.Table;
+import schemaspy.model.TableColumn;
+import schemaspy.model.TableIndex;
 
 public class DotNode {
     private final Table table;
@@ -49,7 +49,7 @@ public class DotNode {
 
     public DotNode(Table table, String path, DotNodeConfig config) {
         this.table = table;
-        this.path = path + (table.isRemote() ? ("../../" + table.getContainer() + "/tables/") : "");
+        this.path = path + (table.isRemote() ? ("../../" + table.getSchema() + "/tables/") : "");
         this.config = config;
     }
 
@@ -82,15 +82,14 @@ public class DotNode {
         StyleSheet css = StyleSheet.getInstance();
         StringBuilder buf = new StringBuilder();
         String tableName = table.getName();
-        // fully qualified table name (optionally prefixed with schema)
-        String fqTableName = (table.isRemote() ? table.getContainer() + "." : "") + tableName;
-        String colspan = config.showColumnDetails ? "COLSPAN=\"2\" " : "COLSPAN=\"3\" ";
+        String fqTableName = (table.isRemote() ? table.getSchema() + "." : "") + tableName;
+        String colspan = config.showColumnDetails ? "COLSPAN=\"3\" " : "COLSPAN=\"4\" ";
 
         buf.append("  \"" + fqTableName + "\" [" + lineSeparator);
         buf.append("    label=<" + lineSeparator);
         buf.append("    <TABLE BORDER=\"" + (config.showColumnDetails ? "2" : "0") + "\" CELLBORDER=\"1\" CELLSPACING=\"0\" BGCOLOR=\"" + css.getTableBackground() + "\">" + lineSeparator);
         buf.append("      <TR>");
-        buf.append("<TD COLSPAN=\"3\" BGCOLOR=\"" + css.getTableHeadBackground() + "\" ALIGN=\"CENTER\">" + fqTableName + "</TD>");
+        buf.append("<TD COLSPAN=\"4\" BGCOLOR=\"#72ECA1\" ALIGN=\"CENTER\">" + fqTableName + "</TD>");
         buf.append("</TR>" + lineSeparator);
 
         boolean skippedTrivial = false;
@@ -121,7 +120,7 @@ public class DotNode {
                         buf.append("<TD PORT=\"");
                         buf.append(column.getName());
                         buf.append(".type\" ALIGN=\"LEFT\">");
-                        buf.append(column.getShortType().toLowerCase());
+                        buf.append(column.getType().toLowerCase());
                         buf.append("[");
                         buf.append(column.getDetailedSize());
                         buf.append("]</TD>");
@@ -134,47 +133,46 @@ public class DotNode {
         }
 
         if (skippedTrivial || !config.showColumns) {
-            buf.append("      <TR><TD PORT=\"elipses\" COLSPAN=\"3\" ALIGN=\"LEFT\">...</TD></TR>" + lineSeparator);
+            buf.append("      <TR><TD PORT=\"elipses\" COLSPAN=\"4\" ALIGN=\"LEFT\">...</TD></TR>" + lineSeparator);
         }
-
-        buf.append("      <TR>");
-        buf.append("<TD ALIGN=\"LEFT\" BGCOLOR=\"" + css.getBodyBackground() + "\">");
-        int numParents = config.showImpliedRelationships ? table.getNumParents() : table.getNumNonImpliedParents();
-        if (numParents > 0 || config.showColumnDetails)
-            buf.append("&lt; " + numParents);
-        else
-            buf.append("  ");
-        buf.append("</TD>");
-        buf.append("<TD ALIGN=\"RIGHT\" BGCOLOR=\"" + css.getBodyBackground() + "\">");
-        if (table.isView())
+        if(table.isView()){
+            buf.append("      <TR>");
+            buf.append("<TD ALIGN=\"CENTER\" COLSPAN=\"4\" BGCOLOR=\"" + css.getBodyBackground() + "\">");
             buf.append("view");
-        else {
-            final long numRows = table.getNumRows();
-            if (displayNumRows && numRows >= 0) {
-                buf.append(NumberFormat.getInstance().format(numRows));
-                buf.append(" row");
-                if (numRows != 1)
-                    buf.append('s');
-            } else {
-                buf.append("  ");
-            }
+            buf.append("</TD>");
+            buf.append("</TR>" + lineSeparator);
         }
-        buf.append("</TD>");
-        buf.append("<TD ALIGN=\"RIGHT\" BGCOLOR=\"" + css.getBodyBackground() + "\">");
-        int numChildren = config.showImpliedRelationships ? table.getNumChildren() : table.getNumNonImpliedChildren();
-        if (numChildren > 0 || config.showColumnDetails)
-            buf.append(numChildren + " &gt;");
-        else
-            buf.append("  ");
-        buf.append("</TD></TR>" + lineSeparator);
-
         buf.append("    </TABLE>>" + lineSeparator);
         if (!table.isRemote() || Config.getInstance().isOneOfMultipleSchemas())
-            buf.append("    URL=\"" + path + HtmlFormatter.urlEncode(tableName) + ".html\"" + lineSeparator);
-        buf.append("    tooltip=\"" + HtmlFormatter.urlEncode(fqTableName) + "\"" + lineSeparator);
+            buf.append("    URL=\"" + path + toNCR(tableName) + ".html\"" + lineSeparator);
+        buf.append("    tooltip=\"" + toNCR(fqTableName) + "\"" + lineSeparator);
         buf.append("  ];");
 
         return buf.toString();
+    }
+
+    /**
+     * Translates specified string to Numeric Character Reference (NCR).
+     * This (hopefully) allows Unicode languages to be displayed correctly.<p>
+     * The basis for this code was found
+     * <a href='http://d.hatena.ne.jp/etherealmaro/20060806#1154886500'>here</a>.
+     *
+     * @param str
+     * @return
+     */
+    private static String toNCR(String str) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < str.length(); ++i) {
+            char ch = str.charAt(i);
+            if (ch <= 127) {    // don't confuse things unless necessary
+                result.append(ch);
+            } else {
+                result.append("&#");
+                result.append(Integer.parseInt(Integer.toHexString(ch), 16));
+                result.append(";");
+            }
+        }
+        return result.toString();
     }
 
     public static class DotNodeConfig {

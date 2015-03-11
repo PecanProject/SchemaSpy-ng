@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,8 +16,8 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.view;
-
+package schemaspy.view;
+  
 import java.io.File;
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -27,17 +27,16 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import net.sourceforge.schemaspy.Config;
-import net.sourceforge.schemaspy.model.Database;
-import net.sourceforge.schemaspy.model.ForeignKeyConstraint;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.model.TableColumn;
-import net.sourceforge.schemaspy.model.TableIndex;
-import net.sourceforge.schemaspy.model.View;
-import net.sourceforge.schemaspy.util.CaseInsensitiveMap;
-import net.sourceforge.schemaspy.util.Dot;
-import net.sourceforge.schemaspy.util.HtmlEncoder;
-import net.sourceforge.schemaspy.util.LineWriter;
+import schemaspy.Config;
+import schemaspy.model.Database;
+import schemaspy.model.ForeignKeyConstraint;
+import schemaspy.model.Table;
+import schemaspy.model.TableColumn;
+import schemaspy.model.TableIndex;
+import schemaspy.model.View;
+import schemaspy.util.CaseInsensitiveMap;
+import schemaspy.util.HtmlEncoder;
+import schemaspy.util.LineWriter;
 
 /**
  * The page that contains the details of a specific table or view
@@ -47,7 +46,8 @@ import net.sourceforge.schemaspy.util.LineWriter;
 public class HtmlTablePage extends HtmlFormatter {
     private static final HtmlTablePage instance = new HtmlTablePage();
     private int columnCounter = 0;
-
+    boolean nocomment=true;
+    boolean nofkeys=true;
     private final Map<String, String> defaultValueAliases = new HashMap<String, String>();
     {
         defaultValueAliases.put("CURRENT TIMESTAMP", "now"); // DB2
@@ -71,57 +71,44 @@ public class HtmlTablePage extends HtmlFormatter {
     public static HtmlTablePage getInstance() {
         return instance;
     }
+    public void reset(){
+        columnCounter=0;
+        nocomment=true;
+        nofkeys=true;
+    }
 
-    public WriteStats write(Database db, Table table, File outputDir, WriteStats stats, LineWriter out) throws IOException {
-        File diagramsDir = new File(outputDir, "diagrams");
+    public WriteStats write(Database db, Table table, boolean hasOrphans, File outputDir, WriteStats stats, LineWriter out) throws IOException {
+        File diagramsDir = new File(outputDir, "public/images");// diagrams folder
         boolean hasImplied = generateDots(table, diagramsDir, stats);
-
-        writeHeader(db, table, null, out);
-        out.writeln("<table width='100%' border='0'>");
-        out.writeln("<tr valign='top'><td class='container' align='left' valign='top'>");
-        writeHeader(table, hasImplied, out);
-        out.writeln("</td><td class='container' rowspan='2' align='right' valign='top'>");
-        writeLegend(true, out);
-        out.writeln("</td><tr valign='top'><td class='container' align='left' valign='top'>");
+        writeHeader(db, table, null, hasOrphans, out);///////HTMLFormatter doctype etc       
+        writeHeader(table, false, out);
+        writeLegend(out);
+        out.writeln("<div class='sixteen colums'>");        
         writeMainTable(table, out);
-        writeNumRows(db, table, out);
-        out.writeln("</td></tr></table>");
+        out.writeln("</div>"); 
+        if(nocomment)
+            out.writeln("<script>jQuery('.comment').hide()</script>");// if no comment hide comment
+        if(nofkeys)
+            out.writeln("<script>jQuery('.fkey').hide()</script>");// if no fkeys hide fkeys
         writeCheckConstraints(table, out);
-        writeIndexes(table, out);
+        writeIndexes(table, out);      
         writeView(table, db, out);
         writeDiagram(table, stats, diagramsDir, out);
-        writeFooter(out);
-
+        out.writeln("</div>"); 
         return stats;
     }
 
     private void writeHeader(Table table, boolean hasImplied, LineWriter html) throws IOException {
-        html.writeln("<form name='options' action=''>");
-        if (hasImplied) {
-            html.write(" <label for='implied'><input type=checkbox id='implied'");
-            if (table.isOrphan(false))
-                html.write(" checked");
-            html.writeln(">Implied relationships</label>");
-        }
-
-        // initially show comments if any of the columns contain comments
-        boolean showCommentsInitially = false;
         for (TableColumn column : table.getColumns()) {
-            if (column.getComments() != null) {
-                showCommentsInitially = true;
-                break;
-            }
+            if (column.getComments() != null && column.getComments().length()!=0) 
+                nocomment=false;
+            if(column.isForeignKey())
+                nofkeys=false;
         }
-
-        html.writeln(" <label for='showRelatedCols'><input type=checkbox id='showRelatedCols'>Related columns</label>");
-        html.writeln(" <label for='showConstNames'><input type=checkbox id='showConstNames'>Constraints</label>");
-        html.writeln(" <label for='showComments'><input type=checkbox " + (showCommentsInitially  ? "checked " : "") + "id='showComments'>Comments</label>");
-        html.writeln(" <label for='showLegend'><input type=checkbox checked id='showLegend'>Legend</label>");
-        html.writeln("</form>");
     }
 
     public void writeMainTable(Table table, LineWriter out) throws IOException {
-        HtmlColumnsPage.getInstance().writeMainTableHeader(table.getId() != null, null, out);
+        HtmlColumnsPage.getInstance().writeMainTableHeader(table.getId() != null, null, out);///////column page
 
         out.writeln("<tbody valign='top'>");
         Set<TableColumn> primaries = new HashSet<TableColumn>(table.getPrimaryColumns());
@@ -132,19 +119,13 @@ public class HtmlTablePage extends HtmlFormatter {
 
         boolean showIds = table.getId() != null;
         for (TableColumn column : table.getColumns()) {
-            writeColumn(column, null, primaries, indexedColumns, false, showIds, out);
+            writeColumn(column, null, primaries, indexedColumns, showIds, out);
         }
-        out.writeln("</tbody>");
         out.writeln("</table>");
     }
 
-    public void writeColumn(TableColumn column, String tableName, Set<TableColumn> primaries, Set<TableColumn> indexedColumns, boolean slim, boolean showIds, LineWriter out) throws IOException {
-        boolean even = columnCounter++ % 2 == 0;
-        if (even)
-            out.writeln("<tr class='even'>");
-        else
-            out.writeln("<tr class='odd'>");
-
+    public void writeColumn(TableColumn column, String tableName, Set<TableColumn> primaries, Set<TableColumn> indexedColumns, boolean showIds, LineWriter out) throws IOException {
+        out.writeln("<tr>");
         if (showIds) {
             out.write(" <td class='detail' align='right'>");
             out.write(String.valueOf(column.getId()));
@@ -152,7 +133,7 @@ public class HtmlTablePage extends HtmlFormatter {
         }
         if (tableName != null) {
             out.write(" <td class='detail'><a href='tables/");
-            out.write(urlEncode(tableName));
+            out.write(tableName);
             out.write(".html'>");
             out.write(tableName);
             out.writeln("</a></td>");
@@ -175,13 +156,13 @@ public class HtmlTablePage extends HtmlFormatter {
         if (column.isNullable())
             out.write(" title='nullable'>&nbsp;&radic;&nbsp;");
         else
-            out.write(">");
+            out.write(">&nbsp;&chi;&nbsp;");
         out.writeln("</td>");
         out.write(" <td class='detail' align='center'");
         if (column.isAutoUpdated()) {
             out.write(" title='Automatically updated by the database'>&nbsp;&radic;&nbsp;");
         } else {
-            out.write(">");
+            out.write(">&nbsp;&chi;&nbsp;");
         }
         out.writeln("</td>");
 
@@ -202,15 +183,11 @@ public class HtmlTablePage extends HtmlFormatter {
         } else {
             out.writeln(" <td class='detail'></td>");
         }
-        if (!slim) {
-            out.write(" <td class='detail'>");
-            String path = tableName == null ? "" : "tables/";
-            writeRelatives(column, false, path, even, out);
-            out.writeln("</td>");
-            out.write(" <td class='detail'>");
-            writeRelatives(column, true, path, even, out);
-            out.writeln(" </td>");
-        }
+        String path = tableName == null ? "" : "tables/";
+        out.write(" <td class='detail fkey'>");
+        writeRelatives(column, true, path,out);
+        out.writeln(" </td>");
+
         out.write(" <td class='comment detail'>");
         String comments = column.getComments();
         if (comments != null) {
@@ -232,82 +209,21 @@ public class HtmlTablePage extends HtmlFormatter {
      * @param out LineWriter
      * @throws IOException
      */
-    private void writeRelatives(TableColumn baseRelative, boolean dumpParents, String path, boolean even, LineWriter out) throws IOException {
+    private void writeRelatives(TableColumn baseRelative, boolean dumpParents, String path, LineWriter out) throws IOException {
         Set<TableColumn> columns = dumpParents ? baseRelative.getParents() : baseRelative.getChildren();
         final int numColumns = columns.size();
-        final String evenOdd = (even ? "even" : "odd");
-
-        if (numColumns > 0) {
-            out.newLine();
-            out.writeln("  <table border='0' width='100%' cellspacing='0' cellpadding='0'>");
-        }
-
         for (TableColumn column : columns) {
-            Table columnTable = column.getTable();
-            String columnTableName = columnTable.getName();
+            String columnTableName = column.getTable().getName();
             ForeignKeyConstraint constraint = dumpParents ? column.getChildConstraint(baseRelative) : column.getParentConstraint(baseRelative);
-            if (constraint.isImplied())
-                out.writeln("   <tr class='impliedRelationship relative " + evenOdd + "' valign='top'>");
-            else
-                out.writeln("   <tr class='relative " + evenOdd + "' valign='top'>");
-            out.write("    <td class='relatedTable detail' title=\"");
-            out.write(constraint.toString());
-            out.write("\">");
-            if (columnTable.isRemote() && !Config.getInstance().isOneOfMultipleSchemas()) {
-                out.write(columnTable.getContainer());
-                out.write('.');
-                out.write(columnTableName);
-            } else {
-                if (columnTable.isRemote()) {
-                    out.write("<a href='");
-                    out.write(path);
-                    out.write("../../" + urlEncode(columnTable.getContainer()) + "/index.html'>");
-                    out.write(columnTable.getContainer());
-                    out.write("</a>.");
-                }
-                out.write("<a href='");
-                out.write(path);
-                if (columnTable.isRemote()) {
-                    out.write("../../" + urlEncode(columnTable.getContainer()) + "/tables/");
-                }
-                out.write(urlEncode(columnTableName));
-                out.write(".html'>");
-                out.write(columnTableName);
-                out.write("</a>");
-            }
-            out.write("<span class='relatedKey'>.");
+            out.write("<%=link_to '");
+            out.write(columnTableName);
+            out.write(".");
             out.write(column.getName());
-            out.writeln("</span>");
-            out.writeln("    </td>");
-
-            out.write("    <td class='constraint detail'>");
-            out.write(constraint.getName());
-            String ruleText = constraint.getDeleteRuleDescription();
-            if (ruleText.length() > 0)
-            {
-                String ruleAlias = constraint.getDeleteRuleAlias();
-                out.write("<span title='" + ruleText + "'>&nbsp;" + ruleAlias + "</span>");
-            }
-            out.writeln("</td>");
-
-            out.writeln("   </tr>");
-        }
-        if (numColumns > 0) {
-            out.writeln("  </table>");
+            out.writeln("',schemas_path(:partial => '");
+            out.write(columnTableName);
+            out.write("_table')%>");
         }
     }
-
-    private void writeNumRows(Database db, Table table, LineWriter out) throws IOException {
-        out.write("<p title='" + table.getColumns().size() + " columns'>");
-        if (displayNumRows && table.getNumRows() >= 0) {
-            out.write("Table contained " + NumberFormat.getIntegerInstance().format(table.getNumRows()) + " rows at ");
-        } else {
-            out.write("Analyzed at ");
-        }
-        out.write(db.getConnectTime());
-        out.writeln("<p/>");
-    }
-
     private void writeCheckConstraints(Table table, LineWriter out) throws IOException {
         Map<String, String> constraints = table.getCheckConstraints();
         if (constraints != null && !constraints.isEmpty()) {
@@ -331,7 +247,6 @@ public class HtmlTablePage extends HtmlFormatter {
                 out.writeln("</td>");
                 out.writeln(" </tr>");
             }
-            out.writeln("</tbody>");
             out.writeln("</table></div><p>");
         }
     }
@@ -342,11 +257,11 @@ public class HtmlTablePage extends HtmlFormatter {
         if (indexes != null && !indexes.isEmpty()) {
             // see if we've got any strangeness so we can have the correct number of colgroups
             boolean containsAnomalies = false;
-            for (TableIndex index : indexes) {
+            /*for (TableIndex index : indexes) {
                 containsAnomalies = index.isUniqueNullable();
                 if (containsAnomalies)
                     break;
-            }
+            }*/
 
             out.writeln("<div class='indent'>");
             out.writeln("<b>Indexes:</b>");
@@ -406,18 +321,8 @@ public class HtmlTablePage extends HtmlFormatter {
                 out.write("  <td class='constraint' style='text-align:left;'>");
                 out.write(index.getName());
                 out.writeln("</td>");
-
-                if (index.isUniqueNullable()) {
-                    if (index.getColumns().size() == 1)
-                        out.writeln("  <td class='detail'>This unique column is also nullable</td>");
-                    else
-                        out.writeln("  <td class='detail'>These unique columns are also nullable</td>");
-                } else if (containsAnomalies) {
-                    out.writeln("  <td>&nbsp;</td>");
-                }
                 out.writeln(" </tr>");
             }
-            out.writeln("</tbody>");
             out.writeln("</table>");
             out.writeln("</div>");
         }
@@ -449,7 +354,7 @@ public class HtmlTablePage extends HtmlFormatter {
                 out.write("  ");
                 for (Table t : references) {
                     out.write("<a href='");
-                    out.write(urlEncode(t.getName()));
+                    out.write(t.getName());
                     out.write(".html'>");
                     out.write(t.getName());
                     out.write("</a>&nbsp;");
@@ -462,30 +367,13 @@ public class HtmlTablePage extends HtmlFormatter {
         }
     }
 
-    /**
-     * Generate the .dot file(s) to represent the specified table's relationships.
-     *
-     * Generates a <TABLENAME>.dot if the table has real relatives.
-     *
-     * Also generates a <TABLENAME>.implied2degrees.dot if the table has implied relatives within
-     * two degrees of separation.
-     *
-     * @param table Table
-     * @param diagramsDir File
-     * @throws IOException
-     * @return boolean <code>true</code> if the table has implied relatives within two
-     *                 degrees of separation.
-     */
     private boolean generateDots(Table table, File diagramDir, WriteStats stats) throws IOException {
-        Dot dot = Dot.getInstance();
-        String extension = dot == null ? "png" : dot.getFormat();
-
         File oneDegreeDotFile = new File(diagramDir, table.getName() + ".1degree.dot");
-        File oneDegreeDiagramFile = new File(diagramDir, table.getName() + ".1degree." + extension);
+        File oneDegreeDiagramFile = new File(diagramDir, table.getName() + ".1degree.png");
         File twoDegreesDotFile = new File(diagramDir, table.getName() + ".2degrees.dot");
-        File twoDegreesDiagramFile = new File(diagramDir, table.getName() + ".2degrees." + extension);
+        File twoDegreesDiagramFile = new File(diagramDir, table.getName() + ".2degrees.png");
         File impliedDotFile = new File(diagramDir, table.getName() + ".implied2degrees.dot");
-        File impliedDiagramFile = new File(diagramDir, table.getName() + ".implied2degrees." + extension);
+        File impliedDiagramFile = new File(diagramDir, table.getName() + ".implied2degrees.png");
 
         // delete before we start because we'll use the existence of these files to determine
         // if they should be turned into pngs & presented
@@ -527,6 +415,8 @@ public class HtmlTablePage extends HtmlFormatter {
 
     private void writeDiagram(Table table, WriteStats stats, File diagramsDir, LineWriter html) throws IOException {
         if (table.getMaxChildren() + table.getMaxParents() > 0) {
+            html.writeln("<label for='showone'><input type='checkbox' id='showone' class='showdiagram'>Show One Degree &nbsp;</label>");
+            html.writeln("<label for='showtow'><input type='checkbox' id='showtwo' class='showdiagram'>Show Two Degrees</label>");
             html.writeln("<table width='100%' border='0'><tr><td class='container'>");
             if (HtmlTableDiagrammer.getInstance().write(table, diagramsDir, html)) {
                 html.writeln("</td></tr></table>");
@@ -538,8 +428,4 @@ public class HtmlTablePage extends HtmlFormatter {
         }
     }
 
-    @Override
-    protected String getPathToRoot() {
-        return "../";
-    }
 }

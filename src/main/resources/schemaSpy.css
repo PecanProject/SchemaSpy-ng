@@ -2,7 +2,7 @@
 
 body  {
   color: #000;
-  background-color: #F7F7F7;
+  background-color: #ffffff;
   font-family: arial, geneva, helvetica, lucida, sans-serif;
   margin: 0 0 0 0;
   padding: 0px;
@@ -11,28 +11,28 @@ body  {
 /* background must be specified for it to propagate into diagrams */
 .content {
   margin: 0px;
-  background: #F7F7F7;
+  background: #ffffff;
   border: 0 0;
   padding:.4em;
 }
 
 /* background-color must be specified for th to propagate into diagrams */
 th {
-  background-color: #9BAB96;
+
   text-align: left;
   padding: 0px 4px;
 }
 
 /* background-color must be specified for td to propagate into diagrams */
 td {
-  background-color: #ffffff;
+
 }
 
 tr.even td.detail {
 }
 
 tr.odd td.detail {
-  background-color: #F7F7F7;
+  background-color: #ffffff;
 }
 
 h1 {
@@ -40,14 +40,15 @@ h1 {
 }
 
 /* background must be specified for .primaryKey to propagate into diagrams */
-.primaryKey {
-  background: #BED1B8;
-  padding: 0px 4px;
-}
+
 
 /* background must be specified for .indexedColumn to propagate into diagrams */
 .indexedColumn {
-  background: #F4F7DA;
+  background: #C4FDDA !important;
+  padding: 0px 4px;
+}
+.primaryKey {
+  background: #BCFDAD !important;
   padding: 0px 4px;
 }
 
@@ -59,7 +60,7 @@ h1 {
 
 /* background must be specified for .selectedTable to propagate into diagrams */
 .selectedTable {
-  background: #A9AB96;
+  background: #ffffff;
 }
 
 .detail {
@@ -79,7 +80,7 @@ table {
 
 .dataTable {
   font-size: 85%;
-  background-color: #F7F7F7;
+  background-color: #ffffff;
 }
 
 .heading {
@@ -107,17 +108,16 @@ table {
 }
 
 .container {
-  background-color: #F7F7F7;
+  background-color: #ffffff;
   padding: 0px 0px;
 }
 
 .legend {
-  display: none;
   text-align: left;
 }
 
 .legendDetail {
-  background-color: #F7F7F7;
+  background-color: #ffffff;
   padding: 0px 4px;
 
   font-style: normal;
@@ -134,13 +134,13 @@ table {
 }
 
 .constraint {
-  display: none;
+
   text-align: right;
   padding: 0px 4px;
 }
 
 .comment {
-  display: none;
+
   text-align: left;
   padding: 0px 4px;
 }
@@ -173,7 +173,7 @@ a:visited {
 }
 
 .sortedByColumn {
-  background-color: #6C7769;
+  background-color: #ffffff;
 }
 
 .notSortedByColumn {
@@ -274,4 +274,15 @@ div.spacer {
 
 #header li:hover a {
   background-position:100% -150px;
+}
+table {
+  max-width: 100%;
+  background-color: #ffffff;
+  border-collapse: collapse;
+  border-spacing: 0;
+  clear:both;
+}
+
+label{
+float:left;
 }

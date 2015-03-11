@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.util;
+package schemaspy.util;
 
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
@@ -56,10 +56,8 @@ public class DOMUtil {
      * @param value String
      */
     public static void appendAttribute(Node node, String name, String value) {
-        if (value != null) {
-            Node attribute = node.getOwnerDocument().createAttribute(name);
-            attribute.setNodeValue(value);
-            node.getAttributes().setNamedItem(attribute);
-        }
+        Node attribute = node.getOwnerDocument().createAttribute(name);
+        attribute.setNodeValue(value);
+        node.getAttributes().setNamedItem(attribute);
     }
 }

@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,7 +16,7 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy.model.xml;
+package schemaspy.model.xml;
 
 import java.util.logging.Logger;
 import org.w3c.dom.NamedNodeMap;
@@ -31,11 +31,10 @@ import org.w3c.dom.Node;
 public class ForeignKeyMeta {
     private final String tableName;
     private final String columnName;
-    private final String remoteCatalog;
     private final String remoteSchema;
     private final static Logger logger = Logger.getLogger(ForeignKeyMeta.class.getName());
 
-    public ForeignKeyMeta(Node foreignKeyNode) {
+    ForeignKeyMeta(Node foreignKeyNode) {
         NamedNodeMap attribs = foreignKeyNode.getAttributes();
         Node node = attribs.getNamedItem("table");
         if (node == null)
@@ -46,12 +45,14 @@ public class ForeignKeyMeta {
             throw new IllegalStateException("XML foreignKey definition requires 'column' attribute");
         columnName = node.getNodeValue();
         node = attribs.getNamedItem("remoteSchema");
-        remoteSchema = node == null ? null : node.getNodeValue();
-        node = attribs.getNamedItem("remoteCatalog");
-        remoteCatalog = node == null ? null : node.getNodeValue();
+        if (node != null) {
+            remoteSchema = node.getNodeValue();
+        } else {
+            remoteSchema = null;
+        }
 
         logger.finer("Found XML FK metadata for " + tableName + "." + columnName +
-                " remoteCatalog: " + remoteCatalog + " remoteSchema: " + remoteSchema);
+                " remoteSchema: " + remoteSchema);
     }
 
     public String getTableName() {
@@ -60,10 +61,6 @@ public class ForeignKeyMeta {
 
     public String getColumnName() {
         return columnName;
-    }
-
-    public String getRemoteCatalog() {
-        return remoteCatalog;
     }
 
     public String getRemoteSchema() {

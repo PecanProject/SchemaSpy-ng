@@ -1,6 +1,6 @@
 /*
  * This file is a part of the SchemaSpy project (http://schemaspy.sourceforge.net).
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 John Currier
+ * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010 John Currier
  *
  * SchemaSpy is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -16,12 +16,11 @@
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-package net.sourceforge.schemaspy;
-
+package schemaspy;
+ 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.sql.Connection;
@@ -34,42 +33,41 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import net.sourceforge.schemaspy.model.ConnectionFailure;
-import net.sourceforge.schemaspy.model.Database;
-import net.sourceforge.schemaspy.model.EmptySchemaException;
-import net.sourceforge.schemaspy.model.ForeignKeyConstraint;
-import net.sourceforge.schemaspy.model.ImpliedForeignKeyConstraint;
-import net.sourceforge.schemaspy.model.InvalidConfigurationException;
-import net.sourceforge.schemaspy.model.Table;
-import net.sourceforge.schemaspy.model.TableColumn;
-import net.sourceforge.schemaspy.model.xml.SchemaMeta;
-import net.sourceforge.schemaspy.util.ConnectionURLBuilder;
-import net.sourceforge.schemaspy.util.DOMUtil;
-import net.sourceforge.schemaspy.util.DbSpecificOption;
-import net.sourceforge.schemaspy.util.Dot;
-import net.sourceforge.schemaspy.util.LineWriter;
-import net.sourceforge.schemaspy.util.LogFormatter;
-import net.sourceforge.schemaspy.util.ResourceWriter;
-import net.sourceforge.schemaspy.view.DotFormatter;
-import net.sourceforge.schemaspy.view.HtmlAnomaliesPage;
-import net.sourceforge.schemaspy.view.HtmlColumnsPage;
-import net.sourceforge.schemaspy.view.HtmlConstraintsPage;
-import net.sourceforge.schemaspy.view.HtmlMainIndexPage;
-import net.sourceforge.schemaspy.view.HtmlOrphansPage;
-import net.sourceforge.schemaspy.view.HtmlRelationshipsPage;
-import net.sourceforge.schemaspy.view.HtmlRoutinesPage;
-import net.sourceforge.schemaspy.view.HtmlTablePage;
-import net.sourceforge.schemaspy.view.ImageWriter;
-import net.sourceforge.schemaspy.view.StyleSheet;
-import net.sourceforge.schemaspy.view.TextFormatter;
-import net.sourceforge.schemaspy.view.WriteStats;
-import net.sourceforge.schemaspy.view.XmlTableFormatter;
+import schemaspy.model.ConnectionFailure;
+import schemaspy.model.Database;
+import schemaspy.model.EmptySchemaException;
+import schemaspy.model.ForeignKeyConstraint;
+import schemaspy.model.ImpliedForeignKeyConstraint;
+import schemaspy.model.InvalidConfigurationException;
+import schemaspy.model.Table;
+import schemaspy.model.TableColumn;
+import schemaspy.model.xml.SchemaMeta;
+import schemaspy.util.ConnectionURLBuilder;
+import schemaspy.util.DOMUtil;
+import schemaspy.util.DbSpecificOption;
+import schemaspy.util.Dot;
+import schemaspy.util.LineWriter;
+import schemaspy.util.LogFormatter;
+import schemaspy.util.PasswordReader;
+import schemaspy.util.ResourceWriter;
+import schemaspy.view.DotFormatter;
+import schemaspy.view.HtmlColumnsPage;
+import schemaspy.view.HtmlConstraintsPage;
+import schemaspy.view.HtmlMainIndexPage;
+import schemaspy.view.HtmlRelationshipsPage;
+import schemaspy.view.HtmlTablePage;
+import schemaspy.view.ImageWriter;
+import schemaspy.view.StyleSheet;
+import schemaspy.view.TextFormatter;
+import schemaspy.view.WriteStats;
+import schemaspy.view.XmlTableFormatter;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -118,20 +116,24 @@ public class SchemaAnalyzer {
             }
 
             List<String> schemas = config.getSchemas();
+///////////////////////////////////////////////////////////////IGNORE IN THIS CASE SCHEMAS WILL ALWAYS BE NULL/////////
             if (schemas != null) {
                 List<String> args = config.asList();
 
                 // following params will be replaced by something appropriate
+                yankParam(args, "-o");
+                yankParam(args, "-s");
+                args.remove("-all");
                 args.remove("-schemas");
                 args.remove("-schemata");
 
                 String dbName = config.getDb();
 
-                MultipleSchemaAnalyzer.getInstance().analyze(dbName, schemas, args, config);
+                MultipleSchemaAnalyzer.getInstance().analyze(dbName, schemas, args, config.getUser(), outputDir, config.getCharset(), Config.getLoadedFromJar());
                 return null;
             }
-
-            Properties properties = config.determineDbProperties(config.getDbType());
+////////////////////////////////////////////////////////////////////////////////////////////////////
+            Properties properties = config.getDbProperties(config.getDbType());
 
             ConnectionURLBuilder urlBuilder = new ConnectionURLBuilder(config, properties);
             if (config.getDb() == null)
@@ -156,7 +158,7 @@ public class SchemaAnalyzer {
             DatabaseMetaData meta = connection.getMetaData();
             String dbName = config.getDb();
             String schema = config.getSchema();
-
+//////////////////////////////////////////////////IGNORE////////////////////////////////////////////////////
             if (config.isEvaluateAllEnabled()) {
                 List<String> args = config.asList();
                 for (DbSpecificOption option : urlBuilder.getOptions()) {
@@ -165,39 +167,32 @@ public class SchemaAnalyzer {
                         args.add(option.getValue().toString());
                     }
                 }
+ 
+                yankParam(args, "-o");  // param will be replaced by something appropriate
+                yankParam(args, "-s");  // param will be replaced by something appropriate
+                args.remove("-all");    // param will be replaced by something appropriate
 
                 String schemaSpec = config.getSchemaSpec();
                 if (schemaSpec == null)
                     schemaSpec = properties.getProperty("schemaSpec", ".*");
-                MultipleSchemaAnalyzer.getInstance().analyze(dbName, meta, schemaSpec, null, args, config);
+                MultipleSchemaAnalyzer.getInstance().analyze(dbName, meta, schemaSpec, null, args, config.getUser(), outputDir, config.getCharset(), Config.getLoadedFromJar());
                 return null;    // no database to return
             }
-
-            String catalog = config.getCatalog();
-
-            logger.fine("supportsSchemasInTableDefinitions: " + meta.supportsSchemasInTableDefinitions());
-            logger.fine("supportsCatalogsInTableDefinitions: " + meta.supportsCatalogsInTableDefinitions());
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
             if (schema == null && meta.supportsSchemasInTableDefinitions() &&
                     !config.isSchemaDisabled()) {
                 schema = config.getUser();
-                logger.fine("schema not specified for a database that requires one.  using user: '" + schema + "'");
                 if (schema == null)
                     throw new InvalidConfigurationException("Either a schema ('-s') or a user ('-u') must be specified");
                 config.setSchema(schema);
             }
 
-            if (catalog == null && schema == null &&
-                    meta.supportsCatalogsInTableDefinitions()) {
-                catalog = dbName;
-                logger.fine("catalog not specified for a database that requires one.  using dbName: '" + catalog + "'");
-                config.setCatalog(catalog);
-            }
-
             SchemaMeta schemaMeta = config.getMeta() == null ? null : new SchemaMeta(config.getMeta(), dbName, schema);
             if (config.isHtmlGenerationEnabled()) {
-                new File(outputDir, "tables").mkdirs();
-                new File(outputDir, "diagrams/summary").mkdirs();
+                if(!(new File(outputDir, "app/views/schemas").exists()))
+                  new File(outputDir, "app/views/schemas").mkdirs();
+                if(!(new File(outputDir, "public/images").exists()))
+                  new File(outputDir, "public/images").mkdirs();
 
                 logger.info("Connected to " + meta.getDatabaseProductName() + " - " + meta.getDatabaseProductVersion());
 
@@ -214,7 +209,7 @@ public class SchemaAnalyzer {
             //
             // create our representation of the database
             //
-            Database db = new Database(config, connection, meta, dbName, catalog, schema, schemaMeta);
+            Database db = new Database(config, connection, meta, dbName, schema, properties, schemaMeta);
 
             schemaMeta = null; // done with it so let GC reclaim it
 
@@ -252,9 +247,11 @@ public class SchemaAnalyzer {
                     System.out.print("Writing/graphing summary");
                     System.out.print(".");
                 }
-                ImageWriter.getInstance().writeImages(outputDir);
-                ResourceWriter.getInstance().writeResource("/jquery.js", new File(outputDir, "/jquery.js"));
-                ResourceWriter.getInstance().writeResource("/schemaSpy.js", new File(outputDir, "/schemaSpy.js"));
+                //ImageWriter.getInstance().writeImages(outputDir);
+                ResourceWriter.getInstance().writeResource("/index.html.erb", new File(outputDir, "/app/views/schemas/index.html.erb"));
+                out = new LineWriter(new File(outputDir, "schemaSpy.css"), config.getCharset());
+                StyleSheet.getInstance().write(out);
+                out.close();
                 if (!fineEnabled)
                     System.out.print(".");
 
@@ -268,13 +265,15 @@ public class SchemaAnalyzer {
                 if (config.isRailsEnabled())
                     DbAnalyzer.getRailsConstraints(db.getTablesByName());
 
-                File summaryDir = new File(outputDir, "diagrams/summary");
+                File diagramsDir = new File(outputDir, "public/images");
 
                 // generate the compact form of the relationships .dot file
                 String dotBaseFilespec = "relationships";
-                out = new LineWriter(new File(summaryDir, dotBaseFilespec + ".real.compact.dot"), Config.DOT_CHARSET);
+                out = new LineWriter(new File(diagramsDir, dotBaseFilespec + ".real.compact.dot"), Config.DOT_CHARSET);
                 WriteStats stats = new WriteStats(tables);
+    
                 DotFormatter.getInstance().writeRealRelationships(db, tables, true, showDetailedTables, stats, out);
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                 boolean hasRealRelationships = stats.getNumTablesWritten() > 0 || stats.getNumViewsWritten() > 0;
                 out.close();
 
@@ -282,7 +281,7 @@ public class SchemaAnalyzer {
                     // real relationships exist so generate the 'big' form of the relationships .dot file
                     if (!fineEnabled)
                         System.out.print(".");
-                    out = new LineWriter(new File(summaryDir, dotBaseFilespec + ".real.large.dot"), Config.DOT_CHARSET);
+                    out = new LineWriter(new File(diagramsDir, dotBaseFilespec + ".real.large.dot"), Config.DOT_CHARSET);
                     DotFormatter.getInstance().writeRealRelationships(db, tables, false, showDetailedTables, stats, out);
                     out.close();
                 }
@@ -296,20 +295,19 @@ public class SchemaAnalyzer {
                     impliedConstraints = new ArrayList<ImpliedForeignKeyConstraint>();
 
                 List<Table> orphans = DbAnalyzer.getOrphans(tables);
-                config.setHasOrphans(!orphans.isEmpty() && Dot.getInstance().isValid());
-                config.setHasRoutines(!db.getRoutines().isEmpty());
+                boolean hasOrphans = !orphans.isEmpty() && Dot.getInstance().isValid();
 
                 if (!fineEnabled)
                     System.out.print(".");
 
-                File impliedDotFile = new File(summaryDir, dotBaseFilespec + ".implied.compact.dot");
+                File impliedDotFile = new File(diagramsDir, dotBaseFilespec + ".implied.compact.dot");
                 out = new LineWriter(impliedDotFile, Config.DOT_CHARSET);
                 boolean hasImplied = DotFormatter.getInstance().writeAllRelationships(db, tables, true, showDetailedTables, stats, out);
 
                 Set<TableColumn> excludedColumns = stats.getExcludedColumns();
                 out.close();
                 if (hasImplied) {
-                    impliedDotFile = new File(summaryDir, dotBaseFilespec + ".implied.large.dot");
+                    impliedDotFile = new File(diagramsDir, dotBaseFilespec + ".implied.large.dot");
                     out = new LineWriter(impliedDotFile, Config.DOT_CHARSET);
                     DotFormatter.getInstance().writeAllRelationships(db, tables, false, showDetailedTables, stats, out);
                     out.close();
@@ -317,62 +315,26 @@ public class SchemaAnalyzer {
                     impliedDotFile.delete();
                 }
 
-                out = new LineWriter(new File(outputDir, dotBaseFilespec + ".html"), config.getCharset());
-                HtmlRelationshipsPage.getInstance().write(db, summaryDir, dotBaseFilespec, hasRealRelationships, hasImplied, excludedColumns, out);
+                out = new LineWriter(new File(outputDir,"app/views/schemas/_relationships.html.erb"), config.getCharset());
+                HtmlRelationshipsPage.getInstance().write(db, diagramsDir, dotBaseFilespec, hasOrphans, hasRealRelationships, hasImplied, excludedColumns, out);
                 out.close();
 
                 if (!fineEnabled)
                     System.out.print(".");
-
-                dotBaseFilespec = "utilities";
-                File orphansDir = new File(outputDir, "diagrams/orphans");
-                orphansDir.mkdirs();
-                out = new LineWriter(new File(outputDir, dotBaseFilespec + ".html"), config.getCharset());
-                HtmlOrphansPage.getInstance().write(db, orphans, orphansDir, out);
-                orphans = null;
-                out.close();
-
                 if (!fineEnabled)
                     System.out.print(".");
-
-                out = new LineWriter(new File(outputDir, "index.html"), 64 * 1024, config.getCharset());
-                HtmlMainIndexPage.getInstance().write(db, tables, db.getRemoteTables(), out);
+                out = new LineWriter(new File(outputDir,"app/views/schemas/_index_table.html.erb"), 64 * 1024, config.getCharset());
+                HtmlMainIndexPage.getInstance().write(db, tables, hasOrphans, out);
                 out.close();
 
                 if (!fineEnabled)
                     System.out.print(".");
 
                 List<ForeignKeyConstraint> constraints = DbAnalyzer.getForeignKeyConstraints(tables);
-                out = new LineWriter(new File(outputDir, "constraints.html"), 256 * 1024, config.getCharset());
-                HtmlConstraintsPage constraintIndexFormatter = HtmlConstraintsPage.getInstance();
-                constraintIndexFormatter.write(db, constraints, tables, out);
-                out.close();
-
                 if (!fineEnabled)
                     System.out.print(".");
-
-                out = new LineWriter(new File(outputDir, "anomalies.html"), 16 * 1024, config.getCharset());
-                HtmlAnomaliesPage.getInstance().write(db, tables, impliedConstraints, out);
-                out.close();
-
                 if (!fineEnabled)
                     System.out.print(".");
-
-                for (HtmlColumnsPage.ColumnInfo columnInfo : HtmlColumnsPage.getInstance().getColumnInfos().values()) {
-                    out = new LineWriter(new File(outputDir, columnInfo.getLocation()), 16 * 1024, config.getCharset());
-                    HtmlColumnsPage.getInstance().write(db, tables, columnInfo, out);
-                    out.close();
-                }
-
-                if (!fineEnabled)
-                    System.out.print(".");
-
-                out = new LineWriter(new File(outputDir, "routines.html"), 16 * 1024, config.getCharset());
-                HtmlRoutinesPage.getInstance().write(db, out);
-                out.close();
-
-                // create detailed diagrams
-
                 startDiagrammingDetails = System.currentTimeMillis();
                 if (!fineEnabled)
                     System.out.println("(" + (startDiagrammingDetails - startSummarizing) / 1000 + "sec)");
@@ -381,24 +343,22 @@ public class SchemaAnalyzer {
                 if (!fineEnabled) {
                     System.out.print("Writing/diagramming details");
                 }
-
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
                 HtmlTablePage tableFormatter = HtmlTablePage.getInstance();
                 for (Table table : tables) {
+                    tableFormatter.reset();
                     if (!fineEnabled)
                         System.out.print('.');
                     else
                         logger.fine("Writing details of " + table.getName());
 
-                    out = new LineWriter(new File(outputDir, "tables/" + table.getName() + ".html"), 24 * 1024, config.getCharset());
-                    tableFormatter.write(db, table, outputDir, stats, out);
+                    out = new LineWriter(new File(outputDir, "app/views/schemas/_" + table.getName() + "_table.html.erb"), 24 * 1024, config.getCharset());
+                    tableFormatter.write(db, table, hasOrphans, outputDir, stats, out);
                     out.close();
                 }
-
-                out = new LineWriter(new File(outputDir, "schemaSpy.css"), config.getCharset());
-                StyleSheet.getInstance().write(out);
-                out.close();
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                
             }
-
 
             XmlTableFormatter.getInstance().appendTables(rootNode, tables);
 
@@ -406,10 +366,6 @@ public class SchemaAnalyzer {
 
             // some dbNames have path info in the name...strip it
             xmlName = new File(xmlName).getName();
-
-            // some dbNames include jdbc driver details including :'s and @'s
-            String[] unusables = xmlName.split("[:@]");
-            xmlName = unusables[unusables.length - 1];
 
             if (schema != null)
                 xmlName += '.' + schema;
@@ -447,27 +403,6 @@ public class SchemaAnalyzer {
             Collections.reverse(orderedTables);
             TextFormatter.getInstance().write(orderedTables, false, out);
             out.close();
-
-            /* we'll eventually want to put this functionality back in with a
-             * database independent implementation
-            File constraintsFile = new File(outputDir, "removeRecursiveConstraints.sql");
-            constraintsFile.delete();
-            if (!recursiveConstraints.isEmpty()) {
-                out = new LineWriter(constraintsFile, 4 * 1024);
-                writeRemoveRecursiveConstraintsSql(recursiveConstraints, schema, out);
-                out.close();
-            }
-
-            constraintsFile = new File(outputDir, "restoreRecursiveConstraints.sql");
-            constraintsFile.delete();
-
-            if (!recursiveConstraints.isEmpty()) {
-                out = new LineWriter(constraintsFile, 4 * 1024);
-                writeRestoreRecursiveConstraintsSql(recursiveConstraints, schema, out);
-                out.close();
-            }
-            */
-
             if (config.isHtmlGenerationEnabled()) {
                 long end = System.currentTimeMillis();
                 if (!fineEnabled)
@@ -501,24 +436,8 @@ public class SchemaAnalyzer {
         System.out.println();
         System.out.println();
         System.out.println("No tables or views were found in schema '" + schema + "'.");
-        List<String> schemas = null;
-        Exception failure = null;
-        try {
-            schemas = DbAnalyzer.getSchemas(meta);
-        } catch (SQLException exc) {
-            failure = exc;
-        } catch (RuntimeException exc) {
-            failure = exc;
-        }
-
-        if (schemas == null) {
-            System.out.println("The user you specified (" + user + ')');
-            System.out.println("  might not have rights to read the database metadata.");
-            System.out.flush();
-            if (failure != null)    // to appease the compiler
-                failure.printStackTrace();
-            return;
-        } else if (schema == null || schemas.contains(schema)) {
+        List<String> schemas = DbAnalyzer.getSchemas(meta);
+        if (schema == null || schemas.contains(schema)) {
             System.out.println("The schema exists in the database, but the user you specified (" + user + ')');
             System.out.println("  might not have rights to read its contents.");
             if (specifiedInclusions) {
@@ -553,7 +472,7 @@ public class SchemaAnalyzer {
         }
     }
 
-    protected Connection getConnection(Config config, String connectionURL,
+    private Connection getConnection(Config config, String connectionURL,
                       String driverClass, String driverPath) throws FileNotFoundException, IOException {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("Using database properties:");
@@ -563,7 +482,45 @@ public class SchemaAnalyzer {
             System.out.println("  " + config.getDbPropertiesLoadedFrom());
         }
 
-        Driver driver = getDriver(driverClass, driverPath);
+        List<URL> classpath = new ArrayList<URL>();
+        List<File> invalidClasspathEntries = new ArrayList<File>();
+        StringTokenizer tokenizer = new StringTokenizer(driverPath, File.pathSeparator);
+        while (tokenizer.hasMoreTokens()) {
+            File pathElement = new File(tokenizer.nextToken());
+            if (pathElement.exists())
+                classpath.add(pathElement.toURI().toURL());
+            else
+                invalidClasspathEntries.add(pathElement);
+        }
+
+        URLClassLoader loader = new URLClassLoader(classpath.toArray(new URL[classpath.size()]));
+        Driver driver = null;
+        try {
+            driver = (Driver)Class.forName(driverClass, true, loader).newInstance();
+
+            // have to use deprecated method or we won't see messages generated by older drivers
+            //java.sql.DriverManager.setLogStream(System.err);
+        } catch (Exception exc) {
+            System.err.println(exc); // people don't want to see a stack trace...
+            System.err.println();
+            System.err.print("Failed to load driver '" + driverClass + "'");
+            if (classpath.isEmpty())
+                System.err.println();
+            else
+                System.err.println("from: " + classpath);
+            if (!invalidClasspathEntries.isEmpty()) {
+                if (invalidClasspathEntries.size() == 1)
+                    System.err.print("This entry doesn't point to a valid file/directory: ");
+                else
+                    System.err.print("These entries don't point to valid files/directories: ");
+                System.err.println(invalidClasspathEntries);
+            }
+            System.err.println();
+            System.err.println("Use the -dp option to specify the location of the database");
+            System.err.println("drivers for your database (usually in a .jar or .zip/.Z).");
+            System.err.println();
+            throw new ConnectionFailure(exc);
+        }
 
         Properties connectionProperties = config.getConnectionProperties();
         if (config.getUser() != null) {
@@ -571,6 +528,9 @@ public class SchemaAnalyzer {
         }
         if (config.getPassword() != null) {
             connectionProperties.put("password", config.getPassword());
+        } else if (config.isPromptForPasswordEnabled()) {
+            connectionProperties.put("password",
+                    new String(PasswordReader.getInstance().readPassword("Password: ")));
         }
 
         Connection connection = null;
@@ -589,7 +549,7 @@ public class SchemaAnalyzer {
             }
         } catch (UnsatisfiedLinkError badPath) {
             System.err.println();
-            System.err.println("Failed to load driver [" + driverClass + "] from classpath " + getExistingUrls(driverPath));
+            System.err.println("Failed to load driver [" + driverClass + "] from classpath " + classpath);
             System.err.println();
             System.err.println("Make sure the reported library (.dll/.lib/.so) from the following line can be");
             System.err.println("found by your PATH (or LIB*PATH) environment variable");
@@ -607,181 +567,7 @@ public class SchemaAnalyzer {
         return connection;
     }
 
-    /**
-     * Returns an instance of {@link Driver} specified by <code>driverClass</code>
-     * loaded from <code>driverPath</code>.
-     *
-     * @param driverClass
-     * @param driverPath
-     * @return
-     * @throws MalformedURLException
-     */
-    protected Driver getDriver(String driverClass, String driverPath) throws MalformedURLException {
-        List<URL> classpath = getExistingUrls(driverPath);
-        ClassLoader loader = getDriverClassLoader(classpath);
-        Driver driver = null;
-
-        try {
-            driver = (Driver)Class.forName(driverClass, true, loader).newInstance();
-
-            // have to use deprecated method or we won't see messages generated by older drivers
-            //java.sql.DriverManager.setLogStream(System.err);
-        } catch (Exception exc) {
-            System.err.println(exc); // people don't want to see a stack trace...
-            System.err.println();
-            System.err.print("Failed to load driver '" + driverClass + "'");
-            if (classpath.isEmpty())
-                System.err.println();
-            else
-                System.err.println(" from: " + classpath);
-
-            List<File> invalidClasspathEntries = getMissingFiles(driverPath);
-            if (!invalidClasspathEntries.isEmpty()) {
-                if (invalidClasspathEntries.size() == 1)
-                    System.err.print("This entry doesn't point to a valid file/directory: ");
-                else
-                    System.err.print("These entries don't point to valid files/directories: ");
-                System.err.println(invalidClasspathEntries);
-            }
-            System.err.println();
-            System.err.println("Use the -dp option to specify the location of the database");
-            System.err.println("drivers for your database (usually in a .jar or .zip/.Z).");
-            System.err.println();
-            throw new ConnectionFailure(exc);
-        }
-
-        return driver;
-    }
-
-    /**
-     * Returns a {@link ClassLoader class loader} to use for resolving {@link Driver}s.
-     *
-     * @param classpath
-     * @return
-     */
-    protected ClassLoader getDriverClassLoader(List<URL> classpath) {
-        ClassLoader loader = null;
-
-        // if a classpath has been specified then use it to find the driver,
-        // otherwise use whatever was used to load this class.
-        // thanks to Bruno Leonardo Gonçalves for this implementation that he
-        // used to resolve issues when running under Maven
-        if (classpath.size() > 0) {
-            loader = new URLClassLoader(classpath.toArray(new URL[classpath.size()]));
-        } else {
-            loader = getClass().getClassLoader();
-        }
-
-        return loader;
-    }
-
-    /**
-     * Returns a list of {@link URL}s in <code>path</code> that point to files that
-     * exist.
-     *
-     * @param path
-     * @return
-     * @throws MalformedURLException
-     */
-    protected List<URL> getExistingUrls(String path) throws MalformedURLException {
-        List<URL> existingUrls = new ArrayList<URL>();
-
-        String[] pieces = path.split(File.pathSeparator);
-        for (String piece : pieces) {
-            File file = new File(piece);
-            if (file.exists())
-                existingUrls.add(file.toURI().toURL());
-        }
-
-        return existingUrls;
-    }
-
-    /**
-     * Returns a list of {@link File}s in <code>path</code> that do not exist.
-     * The intent is to aid in diagnosing invalid paths.
-     *
-     * @param path
-     * @return
-     */
-    protected List<File> getMissingFiles(String path) {
-        List<File> missingFiles = new ArrayList<File>();
-
-        String[] pieces = path.split(File.pathSeparator);
-        for (String piece : pieces) {
-            File file = new File(piece);
-            if (!file.exists())
-                missingFiles.add(file);
-        }
-
-        return missingFiles;
-    }
-
-    /**
-     * Currently very DB2-specific
-     * @param recursiveConstraints List
-     * @param schema String
-     * @param out LineWriter
-     * @throws IOException
-     */
-    /* we'll eventually want to put this functionality back in with a
-     * database independent implementation
-    private static void writeRemoveRecursiveConstraintsSql(List recursiveConstraints, String schema, LineWriter out) throws IOException {
-        for (Iterator iter = recursiveConstraints.iterator(); iter.hasNext(); ) {
-            ForeignKeyConstraint constraint = (ForeignKeyConstraint)iter.next();
-            out.writeln("ALTER TABLE " + schema + "." + constraint.getChildTable() + " DROP CONSTRAINT " + constraint.getName() + ";");
-        }
-    }
-    */
-
-    /**
-     * Currently very DB2-specific
-     * @param recursiveConstraints List
-     * @param schema String
-     * @param out LineWriter
-     * @throws IOException
-     */
-    /* we'll eventually want to put this functionality back in with a
-     * database independent implementation
-    private static void writeRestoreRecursiveConstraintsSql(List recursiveConstraints, String schema, LineWriter out) throws IOException {
-        Map ruleTextMapping = new HashMap();
-        ruleTextMapping.put(new Character('C'), "CASCADE");
-        ruleTextMapping.put(new Character('A'), "NO ACTION");
-        ruleTextMapping.put(new Character('N'), "NO ACTION"); // Oracle
-        ruleTextMapping.put(new Character('R'), "RESTRICT");
-        ruleTextMapping.put(new Character('S'), "SET NULL");  // Oracle
-
-        for (Iterator iter = recursiveConstraints.iterator(); iter.hasNext(); ) {
-            ForeignKeyConstraint constraint = (ForeignKeyConstraint)iter.next();
-            out.write("ALTER TABLE \"" + schema + "\".\"" + constraint.getChildTable() + "\" ADD CONSTRAINT \"" + constraint.getName() + "\"");
-            StringBuffer buf = new StringBuffer();
-            for (Iterator columnIter = constraint.getChildColumns().iterator(); columnIter.hasNext(); ) {
-                buf.append("\"");
-                buf.append(columnIter.next());
-                buf.append("\"");
-                if (columnIter.hasNext())
-                    buf.append(",");
-            }
-            out.write(" FOREIGN KEY (" + buf.toString() + ")");
-            out.write(" REFERENCES \"" + schema + "\".\"" + constraint.getParentTable() + "\"");
-            buf = new StringBuffer();
-            for (Iterator columnIter = constraint.getParentColumns().iterator(); columnIter.hasNext(); ) {
-                buf.append("\"");
-                buf.append(columnIter.next());
-                buf.append("\"");
-                if (columnIter.hasNext())
-                    buf.append(",");
-            }
-            out.write(" (" + buf.toString() + ")");
-            out.write(" ON DELETE ");
-            out.write(ruleTextMapping.get(new Character(constraint.getDeleteRule())).toString());
-            out.write(" ON UPDATE ");
-            out.write(ruleTextMapping.get(new Character(constraint.getUpdateRule())).toString());
-            out.writeln(";");
-        }
-    }
-    */
-
-    static void yankParam(List<String> args, String paramId) {
+    private static void yankParam(List<String> args, String paramId) {
         int paramIndex = args.indexOf(paramId);
         if (paramIndex >= 0) {
             args.remove(paramIndex);
